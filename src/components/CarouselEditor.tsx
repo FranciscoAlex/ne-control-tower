@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  alpha,
   Box,
   Button,
   CircularProgress,
+  Divider,
+  Grid,
   IconButton,
   Paper,
   Stack,
@@ -22,6 +25,8 @@ type CarouselSlide = {
   title: string;
   subtitle: string;
   imageUrl: string;
+  buttonText?: string;
+  buttonLink?: string;
   order: number;
   active: boolean;
 };
@@ -36,6 +41,8 @@ const EMPTY_SLIDE = (): CarouselSlide => ({
   title: '',
   subtitle: '',
   imageUrl: '',
+  buttonText: '',
+  buttonLink: '',
   order: 0,
   active: true,
 });
@@ -164,161 +171,257 @@ export default function CarouselEditor() {
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={4}>
       <PageUrlBanner urls={{ path: '/', label: 'Página Principal — Carrossel de Destaque' }} />
 
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Gerir slides do banner hero. Arraste com as setas para reordenar.
+          <Typography variant="h6" fontWeight={800} sx={{ color: '#1e293b' }}>
+            Slides do Carrossel
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Gerir os banners principais da página inicial. Adicione botões e links para direcionar os utilizadores.
           </Typography>
         </Box>
         <Button
           variant="contained"
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={18} />}
           onClick={handleSave}
           disabled={saving}
-          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          sx={{ 
+            borderRadius: 3, 
+            textTransform: 'none', 
+            fontWeight: 700,
+            px: 3,
+            height: 48,
+            boxShadow: '0 4px 12px rgba(11, 58, 130, 0.25)',
+            '&:hover': { boxShadow: '0 6px 16px rgba(11, 58, 130, 0.35)' }
+          }}
         >
-          {saving ? 'A guardar…' : 'Guardar Tudo'}
+          {saving ? 'A guardar…' : 'Guardar Alterações'}
         </Button>
       </Stack>
 
-      {error && <Alert severity="error">{error}</Alert>}
-      {success && <Alert severity="success">Slides guardados com sucesso! O carrossel será atualizado.</Alert>}
+      {error && <Alert severity="error" sx={{ borderRadius: 3 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ borderRadius: 3 }}>Mudanças aplicadas com sucesso!</Alert>}
 
-      <Stack spacing={2}>
+      <Stack spacing={3}>
         {data.slides.map((slide, index) => (
           <Paper
             key={slide.id}
-            variant="outlined"
+            elevation={0}
             sx={{
-              p: 2.5,
-              borderRadius: 3,
+              p: 3,
+              borderRadius: 5,
+              border: '1px solid',
               borderColor: slide.active ? '#e2e8f0' : '#f1f5f9',
-              opacity: slide.active ? 1 : 0.55,
-              transition: 'opacity .2s',
+              bgcolor: slide.active ? 'white' : '#f8fafc',
+              opacity: slide.active ? 1 : 0.75,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&:hover': {
+                borderColor: slide.active ? '#cbd5e1' : '#e2e8f0',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
+                transform: 'translateY(-2px)'
+              }
             }}
           >
-            <Stack spacing={2}>
+            {/* Background accent for index */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -20,
+                left: -20,
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                bgcolor: slide.active ? alpha('#0b3a82', 0.03) : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 0
+              }}
+            />
+
+            <Stack spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
               {/* Header row */}
-              <Stack direction="row" alignItems="center" spacing={1}>
+              <Stack direction="row" alignItems="center" spacing={2}>
                 <Box
                   sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 3,
                     bgcolor: slide.active ? '#0b3a82' : '#94a3b8',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: 700,
+                    fontSize: 14,
+                    fontWeight: 800,
                     flexShrink: 0,
+                    boxShadow: slide.active ? '0 4px 8px rgba(11, 58, 130, 0.2)' : 'none'
                   }}
                 >
                   {index + 1}
                 </Box>
-                <Typography fontWeight={600} sx={{ flex: 1 }} noWrap>
-                  {slide.title || '(sem título)'}
+                <Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1, color: '#1e293b' }} noWrap>
+                  {slide.title || '(Slide sem título)'}
                 </Typography>
-                <Tooltip title="Ativo / Inativo">
-                  <Switch
-                    size="small"
-                    checked={slide.active}
-                    onChange={(e) => updateSlide(index, { active: e.target.checked })}
-                  />
-                </Tooltip>
-                <Tooltip title="Mover acima">
-                  <span>
-                    <IconButton size="small" onClick={() => moveUp(index)} disabled={index === 0}>
-                      <ArrowUp size={16} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Mover abaixo">
-                  <span>
-                    <IconButton size="small" onClick={() => moveDown(index)} disabled={index === data.slides.length - 1}>
-                      <ArrowDown size={16} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Eliminar slide">
+                
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Tooltip title={slide.active ? "Desactivar Slide" : "Activar Slide"}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mr: 2 }}>
+                      <Typography variant="caption" fontWeight={700} color={slide.active ? "primary" : "text.secondary"}>
+                        {slide.active ? "ACTIVO" : "INACTIVO"}
+                      </Typography>
+                      <Switch
+                        size="small"
+                        checked={slide.active}
+                        onChange={(e) => updateSlide(index, { active: e.target.checked })}
+                      />
+                    </Stack>
+                  </Tooltip>
+                  
+                  <Divider orientation="vertical" flexItem sx={{ mx: 1, height: 20, my: 'auto' }} />
+                  
+                  <IconButton 
+                    size="small" 
+                    onClick={() => moveUp(index)} 
+                    disabled={index === 0}
+                    sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
+                  >
+                    <ArrowUp size={16} />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => moveDown(index)} 
+                    disabled={index === data.slides.length - 1}
+                    sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
+                  >
+                    <ArrowDown size={16} />
+                  </IconButton>
                   <IconButton
                     size="small"
                     color="error"
                     onClick={() => deleteSlide(index)}
+                    sx={{ bgcolor: alpha('#ef4444', 0.1), '&:hover': { bgcolor: alpha('#ef4444', 0.2) } }}
                   >
                     <Trash2 size={16} />
                   </IconButton>
-                </Tooltip>
-              </Stack>
-
-              {/* Fields */}
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                {/* Slide preview thumbnail + upload */}
-                <Stack spacing={1} sx={{ width: { xs: '100%', md: 140 }, flexShrink: 0 }}>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 80,
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      bgcolor: '#f1f5f9',
-                      backgroundImage: slide.imageUrl ? `linear-gradient(rgba(11,58,130,.4),rgba(11,58,130,.8)), url(${slide.imageUrl})` : undefined,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#94a3b8',
-                    }}
-                  >
-                    {!slide.imageUrl && <Image size={28} />}
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => triggerUpload(index)}
-                    disabled={uploadingIndex === index}
-                    startIcon={uploadingIndex === index ? <CircularProgress size={12} /> : <Upload size={13} />}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
-                  >
-                    {uploadingIndex === index ? 'A carregar…' : 'Upload'}
-                  </Button>
-                </Stack>
-
-                <Stack spacing={1.5} sx={{ flex: 1 }}>
-                  <TextField
-                    label="Título"
-                    size="small"
-                    fullWidth
-                    value={slide.title}
-                    onChange={(e) => updateSlide(index, { title: e.target.value })}
-                  />
-                  <TextField
-                    label="Subtítulo"
-                    size="small"
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    value={slide.subtitle}
-                    onChange={(e) => updateSlide(index, { subtitle: e.target.value })}
-                  />
-                  <TextField
-                    label="URL da Imagem de Fundo"
-                    size="small"
-                    fullWidth
-                    placeholder="https://..."
-                    value={slide.imageUrl}
-                    onChange={(e) => updateSlide(index, { imageUrl: e.target.value })}
-                    InputProps={{
-                      startAdornment: <Image size={14} style={{ marginRight: 6, color: '#94a3b8', flexShrink: 0 }} />,
-                    }}
-                  />
                 </Stack>
               </Stack>
+
+              <Grid container spacing={3}>
+                {/* Image Preview & Upload */}
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Stack spacing={1.5}>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        aspectRatio: '16/9',
+                        borderRadius: 4,
+                        overflow: 'hidden',
+                        bgcolor: '#f1f5f9',
+                        border: '2px dashed #cbd5e1',
+                        backgroundImage: slide.imageUrl ? `url(${slide.imageUrl})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        '&:hover': { borderColor: '#164993' }
+                      }}
+                    >
+                      {!slide.imageUrl && <Image size={32} color="#94a3b8" />}
+                      {slide.imageUrl && (
+                        <Box sx={{ width: '100%', height: '100%', bgcolor: 'rgba(15, 23, 42, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, '&:hover': { opacity: 1 }, transition: 'opacity 0.2s' }}>
+                           <Typography variant="caption" sx={{ color: 'white', fontWeight: 700 }}>PREVIEW</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => triggerUpload(index)}
+                      disabled={uploadingIndex === index}
+                      startIcon={uploadingIndex === index ? <CircularProgress size={14} /> : <Upload size={14} />}
+                      sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, py: 1 }}
+                    >
+                      {uploadingIndex === index ? 'A carregar…' : 'Alterar Imagem'}
+                    </Button>
+                  </Stack>
+                </Grid>
+
+                {/* Content Fields */}
+                <Grid size={{ xs: 12, md: 9 }}>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        label="Título Principal"
+                        variant="outlined"
+                        fullWidth
+                        size="small"
+                        value={slide.title}
+                        onChange={(e) => updateSlide(index, { title: e.target.value })}
+                        slotProps={{ input: { sx: { fontWeight: 600 } } }}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        label="Subtítulo / Descrição"
+                        variant="outlined"
+                        fullWidth
+                        multiline
+                        rows={2}
+                        size="small"
+                        value={slide.subtitle}
+                        onChange={(e) => updateSlide(index, { subtitle: e.target.value })}
+                      />
+                    </Grid>
+                    
+                    {/* CTA Section */}
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        label="Texto do Botão (CTA)"
+                        placeholder="Ex: Saiba Mais"
+                        variant="outlined"
+                        fullWidth
+                        size="small"
+                        value={slide.buttonText || ''}
+                        onChange={(e) => updateSlide(index, { buttonText: e.target.value })}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        label="Link de Destino"
+                        placeholder="Ex: /sobre-nos ou https://..."
+                        variant="outlined"
+                        fullWidth
+                        size="small"
+                        value={slide.buttonLink || ''}
+                        onChange={(e) => updateSlide(index, { buttonLink: e.target.value })}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        label="URL Directa da Imagem"
+                        variant="outlined"
+                        fullWidth
+                        size="small"
+                        value={slide.imageUrl}
+                        onChange={(e) => updateSlide(index, { imageUrl: e.target.value })}
+                        InputProps={{
+                          startAdornment: <Image size={16} style={{ marginRight: 8, color: '#94a3b8' }} />,
+                        }}
+                        sx={{ mt: 1 }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Grid>
+              </Grid>
             </Stack>
           </Paper>
         ))}
@@ -326,14 +429,23 @@ export default function CarouselEditor() {
 
       <Button
         variant="outlined"
-        startIcon={<Plus size={16} />}
+        startIcon={<Plus size={20} />}
         onClick={addSlide}
-        sx={{ alignSelf: 'flex-start', borderRadius: 2, textTransform: 'none' }}
+        sx={{ 
+          py: 3, 
+          borderRadius: 4, 
+          border: '2px dashed #cbd5e1', 
+          color: '#64748b',
+          transition: 'all 0.2s',
+          '&:hover': { border: '2px dashed #0b3a82', bgcolor: alpha('#0b3a82', 0.04), color: '#0b3a82' },
+          textTransform: 'none',
+          fontWeight: 700
+        }}
       >
-        Adicionar Slide
+        Adicionar Novo Slide ao Carrossel
       </Button>
 
-      {/* Hidden file input shared across all slides */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
