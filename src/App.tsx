@@ -86,6 +86,7 @@ import BodivaEditor from './components/BodivaEditor';
 import MercadoEditor from './components/MercadoEditor';
 import CeoMessageEditor from './components/CeoMessageEditor';
 import CarouselEditor from './components/CarouselEditor';
+import PlanoEstrategicoEditor from './components/PlanoEstrategicoEditor';
 import logoEnsaSrc from './assets/logo_ensa.png';
 
 // --- Types ---
@@ -99,7 +100,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'EXECUTIVE' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'SUBSIDIARIAS' | 'EVENTOS' | 'BODIVA' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'EXECUTIVE' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'SUBSIDIARIAS' | 'EVENTOS' | 'BODIVA' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -126,6 +127,7 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   MERCADO:       '/financas/mercado',
   CEO_MESSAGE:   '/comunicacao/ceo',
   CAROUSEL:      '/comunicacao/carousel',
+  PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
 };
 
 const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(
@@ -432,7 +434,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { id: 'DASHBOARD', text: 'Painel de Controlo', icon: <LayoutDashboard size={20} /> },
     
     { type: 'header', text: 'Gestão Institucional' },
-    { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} /> },
+    { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
+        { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
+      ]
+    },
     { 
       id: 'GOVERNANCA', 
       text: 'Governação', 
@@ -614,6 +619,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   SUBSIDIARIAS: 'Empresas do Grupo',
                   INDICADORES: 'Indicadores Chave (KPIs)',
                   ANNUAL_REPORTS: 'Relatórios e Contas',
+                  PLANO_ESTRATEGICO: 'Plano Estratégico',
                   RATINGS: 'Ratings e Notações',
                   BODIVA: 'Histórico BODIVA',
                   MERCADO: 'Análise de Mercado',
@@ -806,6 +812,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <CeoMessageEditor />
           ) : viewMode === 'CAROUSEL' ? (
             <CarouselEditor />
+          ) : viewMode === 'PLANO_ESTRATEGICO' ? (
+            <PlanoEstrategicoEditor />
           ) : (
             <Paper sx={{ p: 10, textAlign: 'center', borderRadius: 5, border: '1px solid #f1f5f9', bgcolor: 'white' }}>
               <Box sx={{ mb: 3, opacity: 0.2 }}>
