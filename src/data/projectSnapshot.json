@@ -1,0 +1,254 @@
+{
+  "generatedAt": "2026-04-05T03:59:45.231Z",
+  "sourceRoot": "src",
+  "totalFiles": 58,
+  "sections": [
+    {
+      "id": "pages",
+      "label": "Pages",
+      "relativePath": "src/pages",
+      "totalFiles": 32,
+      "groups": [
+        {
+          "name": "Governance",
+          "fileCount": 22,
+          "sampleFiles": [
+            "Governance/AnnualReports.tsx",
+            "Governance/Biography.tsx",
+            "Governance/CEOMessage.tsx",
+            "Governance/DisclosureCalendar.tsx"
+          ]
+        },
+        {
+          "name": "Auth",
+          "fileCount": 4,
+          "sampleFiles": [
+            "Auth/ForgotPasswordPage.tsx",
+            "Auth/index.ts",
+            "Auth/LoginPage.tsx",
+            "Auth/RegisterPage.tsx"
+          ]
+        },
+        {
+          "name": "Apoio",
+          "fileCount": 1,
+          "sampleFiles": [
+            "Apoio/index.tsx"
+          ]
+        },
+        {
+          "name": "Assembleias",
+          "fileCount": 1,
+          "sampleFiles": [
+            "Assembleias/index.tsx"
+          ]
+        },
+        {
+          "name": "Financas",
+          "fileCount": 1,
+          "sampleFiles": [
+            "Financas/index.tsx"
+          ]
+        },
+        {
+          "name": "Governo",
+          "fileCount": 1,
+          "sampleFiles": [
+            "Governo/index.tsx"
+          ]
+        },
+        {
+          "name": "Home",
+          "fileCount": 1,
+          "sampleFiles": [
+            "Home/index.tsx"
+          ]
+        },
+        {
+          "name": "News",
+          "fileCount": 1,
+          "sampleFiles": [
+            "News/NewsDetail.tsx"
+          ]
+        }
+      ],
+      "samples": [
+        "Apoio/index.tsx",
+        "Assembleias/index.tsx",
+        "Auth/ForgotPasswordPage.tsx",
+        "Auth/index.ts",
+        "Auth/LoginPage.tsx",
+        "Auth/RegisterPage.tsx",
+        "Financas/index.tsx",
+        "Governance/AnnualReports.tsx",
+        "Governance/Biography.tsx",
+        "Governance/CEOMessage.tsx",
+        "Governance/DisclosureCalendar.tsx",
+        "Governance/ExecutiveBody.tsx"
+      ]
+    },
+    {
+      "id": "components",
+      "label": "Components",
+      "relativePath": "src/components",
+      "totalFiles": 4,
+      "groups": [
+        {
+          "name": "Auth",
+          "fileCount": 2,
+          "sampleFiles": [
+            "Auth/index.ts",
+            "Auth/ProtectedRoute.tsx"
+          ]
+        },
+        {
+          "name": "Common",
+          "fileCount": 2,
+          "sampleFiles": [
+            "Common/DetailModal.tsx",
+            "Common/Footer/index.tsx"
+          ]
+        }
+      ],
+      "samples": [
+        "Auth/index.ts",
+        "Auth/ProtectedRoute.tsx",
+        "Common/DetailModal.tsx",
+        "Common/Footer/index.tsx"
+      ]
+    },
+    {
+      "id": "services",
+      "label": "Services",
+      "relativePath": "src/services",
+      "totalFiles": 10,
+      "groups": [
+        {
+          "name": "api",
+          "fileCount": 6,
+          "sampleFiles": [
+            "api/apiClient.ts",
+            "api/authApi.ts",
+            "api/index.ts",
+            "api/investorContentApi.ts"
+          ]
+        },
+        {
+          "name": "db",
+          "fileCount": 2,
+          "sampleFiles": [
+            "db/index.ts",
+            "db/indexedDBService.ts"
+          ]
+        },
+        {
+          "name": "root",
+          "fileCount": 2,
+          "sampleFiles": [
+            "index.ts",
+            "marketService.ts"
+          ]
+        }
+      ],
+      "samples": [
+        "api/apiClient.ts",
+        "api/authApi.ts",
+        "api/index.ts",
+        "api/investorContentApi.ts",
+        "api/staticDataApi.ts",
+        "api/userApi.ts",
+        "db/index.ts",
+        "db/indexedDBService.ts",
+        "index.ts",
+        "marketService.ts"
+      ]
+    },
+    {
+      "id": "hooks",
+      "label": "Hooks",
+      "relativePath": "src/hooks",
+      "totalFiles": 5,
+      "groups": [
+        {
+          "name": "query",
+          "fileCount": 5,
+          "sampleFiles": [
+            "query/index.ts",
+            "query/queryConfig.tsx",
+            "query/useAuth.ts",
+            "query/useInvestorContent.ts"
+          ]
+        }
+      ],
+      "samples": [
+        "query/index.ts",
+        "query/queryConfig.tsx",
+        "query/useAuth.ts",
+        "query/useInvestorContent.ts",
+        "query/useStaticData.ts"
+      ]
+    },
+    {
+      "id": "contexts",
+      "label": "Contexts",
+      "relativePath": "src/contexts",
+      "totalFiles": 2,
+      "groups": [
+        {
+          "name": "root",
+          "fileCount": 2,
+          "sampleFiles": [
+            "AuthContext.tsx",
+            "index.ts"
+          ]
+        }
+      ],
+      "samples": [
+        "AuthContext.tsx",
+        "index.ts"
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Data",
+      "relativePath": "src/data",
+      "totalFiles": 4,
+      "groups": [
+        {
+          "name": "root",
+          "fileCount": 4,
+          "sampleFiles": [
+            "marketModels.ts",
+            "mockData.ts",
+            "newsData.ts",
+            "reportsData.ts"
+          ]
+        }
+      ],
+      "samples": [
+        "marketModels.ts",
+        "mockData.ts",
+        "newsData.ts",
+        "reportsData.ts"
+      ]
+    },
+    {
+      "id": "utils",
+      "label": "Utils",
+      "relativePath": "src/utils",
+      "totalFiles": 1,
+      "groups": [
+        {
+          "name": "root",
+          "fileCount": 1,
+          "sampleFiles": [
+            "idb.ts"
+          ]
+        }
+      ],
+      "samples": [
+        "idb.ts"
+      ]
+    }
+  ]
+}
