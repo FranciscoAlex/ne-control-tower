@@ -32,7 +32,6 @@ import {
   Network,
   User,
   Building,
-  RefreshCw,
   Eye,
   EyeOff,
   Check,
@@ -901,7 +900,9 @@ export default function OrganigramEditor() {
 
   const handleDeleteDirector = (id: string) => {
     if (!data) return;
-    setData({ ...data, directors: data.directors.filter((d) => d.id !== id) });
+    const updated = { ...data, directors: data.directors.filter((d) => d.id !== id) };
+    setData(updated);
+    handleSave(updated);
   };
 
   // ---- Top Node CRUD ----
@@ -918,11 +919,13 @@ export default function OrganigramEditor() {
 
   const handleDeleteTopNode = (id: string) => {
     if (!data) return;
-    setData({
+    const updated = {
       ...data,
       topNodes: data.topNodes.filter((n) => n.id !== id),
       directors: data.directors.map((d) => (d.topNodeId === id ? { ...d, topNodeId: '' } : d)),
-    });
+    };
+    setData(updated);
+    handleSave(updated);
   };
 
   // ---- Columns ----
@@ -1062,12 +1065,12 @@ export default function OrganigramEditor() {
           </Button>
           <Button
             variant={saveStatus === 'saved' || saveStatus === 'error' ? 'contained' : 'outlined'}
-            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : saveStatus === 'saved' ? <Check size={15} /> : saveStatus === 'error' ? <AlertCircle size={15} /> : <RefreshCw size={15} />}
-            onClick={fetchData}
+            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : saveStatus === 'saved' ? <Check size={15} /> : saveStatus === 'error' ? <AlertCircle size={15} /> : <Check size={15} />}
+            onClick={() => handleSave()}
             disabled={saving}
             sx={{ borderRadius: 3, textTransform: 'none', transition: 'all 0.2s', ...(saveStatus === 'saved' ? { bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, borderColor: '#16a34a', color: '#fff' } : saveStatus === 'error' ? { bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, borderColor: '#dc2626', color: '#fff' } : {}) }}
           >
-            {saving ? 'A guardar...' : saveStatus === 'saved' ? 'Guardado' : saveStatus === 'error' ? 'Erro' : 'Recarregar'}
+            {saving ? 'A guardar...' : saveStatus === 'saved' ? 'Guardado' : saveStatus === 'error' ? 'Erro' : 'Guardar'}
           </Button>
         </Stack>
       </Stack>

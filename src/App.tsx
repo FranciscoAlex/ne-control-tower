@@ -80,7 +80,6 @@ import EstatutosEditor from './components/EstatutosEditor';
 import OrgaosSociaisEditor from './components/OrgaosSociaisEditor';
 import AcionistasEditor from './components/AcionistasEditor';
 import EventosEditor from './components/EventosEditor';
-import BodivaEditor from './components/BodivaEditor';
 import MercadoEditor from './components/MercadoEditor';
 import CeoMessageEditor from './components/CeoMessageEditor';
 import CarouselEditor from './components/CarouselEditor';
@@ -100,7 +99,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'BODIVA' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -123,7 +122,6 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   ACIONISTAS:    '/governanca/acionistas',
   PARTICIPADAS:  '/governanca/participadas',
   EVENTOS:       '/eventos',
-  BODIVA:        '/financas/bodiva',
   MERCADO:       '/financas/mercado',
   CEO_MESSAGE:   '/comunicacao/ceo',
   CAROUSEL:      '/comunicacao/carousel',
@@ -463,7 +461,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         { id: 'INDICADORES', text: 'Indicadores Chave (KPIs)', icon: <PieChart size={18} /> },
         { id: 'ANNUAL_REPORTS', text: 'Relatórios e Contas', icon: <FileText size={18} /> },
         { id: 'RATINGS', text: 'Ratings e Notações', icon: <Activity size={18} /> },
-        { id: 'BODIVA', text: 'Histórico BODIVA', icon: <BarChart2 size={18} /> },
         { id: 'MERCADO', text: 'Análise de Mercado', icon: <TrendingUp size={18} /> },
       ]
     },
@@ -622,7 +619,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   ANNUAL_REPORTS: 'Relatórios e Contas',
                   PLANO_ESTRATEGICO: 'Plano Estratégico',
                   RATINGS: 'Ratings e Notações',
-                  BODIVA: 'Histórico BODIVA',
                   MERCADO: 'Análise de Mercado',
                   COMUNICADOS: 'Comunicados e Mídia',
                   NOTICIAS: 'Notícias (Home)',
@@ -805,8 +801,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <ParticipadasEditor />
           ) : viewMode === 'EVENTOS' ? (
             <EventosEditor />
-          ) : viewMode === 'BODIVA' ? (
-            <BodivaEditor />
           ) : viewMode === 'MERCADO' ? (
             <MercadoEditor />
           ) : viewMode === 'CEO_MESSAGE' ? (
