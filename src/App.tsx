@@ -72,7 +72,6 @@ import CalendarioDivulgacoesEditor from './components/CalendarioDivulgacoesEdito
 import AssembliasEditor from './components/AssembliasEditor';
 import ComunicadosEditor from './components/ComunicadosEditor';
 import NoticiasEditor from './components/NoticiasEditor';
-import CorpoDirectivoEditor from './components/CorpoDirectivoEditor';
 import RelatoriosEditor from './components/RelatoriosEditor';
 import BusinessIndicatorsEditor from './components/BusinessIndicatorsEditor';
 import ApoioInvestidorEditor from './components/ApoioInvestidorEditor';
@@ -80,13 +79,14 @@ import MarcoHistoricoEditor from './components/MarcoHistoricoEditor';
 import EstatutosEditor from './components/EstatutosEditor';
 import OrgaosSociaisEditor from './components/OrgaosSociaisEditor';
 import AcionistasEditor from './components/AcionistasEditor';
-import EmpresasGrupoEditor from './components/EmpresasGrupoEditor';
 import EventosEditor from './components/EventosEditor';
 import BodivaEditor from './components/BodivaEditor';
 import MercadoEditor from './components/MercadoEditor';
 import CeoMessageEditor from './components/CeoMessageEditor';
 import CarouselEditor from './components/CarouselEditor';
 import PlanoEstrategicoEditor from './components/PlanoEstrategicoEditor';
+import CorpoDiretivoEditor from './components/CorpoDiretivoEditor';
+import ParticipadasEditor from './components/ParticipadasEditor';
 import logoEnsaSrc from './assets/logo_ensa.png';
 
 // --- Types ---
@@ -100,7 +100,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'EXECUTIVE' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'SUBSIDIARIAS' | 'EVENTOS' | 'BODIVA' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'BODIVA' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -108,9 +108,9 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   SOBRE:         '/sobre',
   GOVERNANCA:    '/governanca',
   ORGANOGRAMA:   '/governanca/organograma',
-  EXECUTIVE:     '/governanca/executive',
   ESTATUTOS:     '/governanca/estatutos',
   ORGAOS_SOCIAIS: '/governanca/orgaos-sociais',
+  EXECUTIVE:     '/governanca/corpo-diretivo',
   FINANCAS:      '/financas',
   INDICADORES:   '/financas/indicadores',
   ANNUAL_REPORTS:'/financas/relatorios',
@@ -121,7 +121,7 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   CALENDARIO:    '/calendario',
   APOIO:         '/apoio',
   ACIONISTAS:    '/governanca/acionistas',
-  SUBSIDIARIAS:  '/grupo/subsidiarias',
+  PARTICIPADAS:  '/governanca/participadas',
   EVENTOS:       '/eventos',
   BODIVA:        '/financas/bodiva',
   MERCADO:       '/financas/mercado',
@@ -356,6 +356,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const [whoWeAreSaving, setWhoWeAreSaving] = useState(false);
   const [whoWeAreMessage, setWhoWeAreMessage] = useState('');
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
+    'SOBRE': true,
     'GOVERNANCA': true,
     'FINANCAS': false
   });
@@ -436,6 +437,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { type: 'header', text: 'Gestão Institucional' },
     { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
         { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
+        { id: 'APOIO', text: 'FAQ do Investidor', icon: <MessageSquare size={18} /> },
       ]
     },
     { 
@@ -444,11 +446,11 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       icon: <ShieldCheck size={20} />, 
       sub: [
         { id: 'ORGANOGRAMA', text: 'Organograma Geral', icon: <Network size={18} /> },
-        { id: 'EXECUTIVE', text: 'Corpo Directivo', icon: <Briefcase size={18} /> },
         { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
         { id: 'ORGAOS_SOCIAIS', text: 'Órgãos Sociais', icon: <Users size={18} /> },
+        { id: 'EXECUTIVE', text: 'Corpo Directivo', icon: <Briefcase size={18} /> },
         { id: 'ACIONISTAS', text: 'Estrutura Accionista', icon: <Landmark size={18} /> },
-        { id: 'SUBSIDIARIAS', text: 'Empresas do Grupo', icon: <Building size={18} /> },
+        { id: 'PARTICIPADAS', text: 'Empresas Participadas', icon: <Building size={18} /> },
       ]
     },
     
@@ -473,7 +475,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { id: 'ASSEMBLEIAS', text: 'Assembleias Gerais', icon: <Users size={20} /> },
     { id: 'CALENDARIO', text: 'Calendário de Divulgações', icon: <History size={20} /> },
     { id: 'EVENTOS', text: 'Eventos Corporativos', icon: <CalendarDays size={20} /> },
-    { id: 'APOIO', text: 'Apoio ao Investidor', icon: <MessageSquare size={20} /> },
   ];
 
   const stats = useMemo(() => ({
@@ -616,7 +617,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   ESTATUTOS: 'Estatutos e Ética',
                   ORGAOS_SOCIAIS: 'Órgãos Sociais',
                   ACIONISTAS: 'Estrutura Accionista',
-                  SUBSIDIARIAS: 'Empresas do Grupo',
+                  PARTICIPADAS: 'Empresas Participadas',
                   INDICADORES: 'Indicadores Chave (KPIs)',
                   ANNUAL_REPORTS: 'Relatórios e Contas',
                   PLANO_ESTRATEGICO: 'Plano Estratégico',
@@ -786,8 +787,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <ComunicadosEditor />
           ) : viewMode === 'NOTICIAS' ? (
             <NoticiasEditor />
-          ) : viewMode === 'EXECUTIVE' ? (
-            <CorpoDirectivoEditor />
           ) : viewMode === 'ANNUAL_REPORTS' ? (
             <RelatoriosEditor />
           ) : viewMode === 'RATINGS' ? (
@@ -798,10 +797,12 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <EstatutosEditor />
           ) : viewMode === 'ORGAOS_SOCIAIS' ? (
             <OrgaosSociaisEditor />
+          ) : viewMode === 'EXECUTIVE' ? (
+            <CorpoDiretivoEditor />
           ) : viewMode === 'ACIONISTAS' ? (
             <AcionistasEditor />
-          ) : viewMode === 'SUBSIDIARIAS' ? (
-            <EmpresasGrupoEditor />
+          ) : viewMode === 'PARTICIPADAS' ? (
+            <ParticipadasEditor />
           ) : viewMode === 'EVENTOS' ? (
             <EventosEditor />
           ) : viewMode === 'BODIVA' ? (

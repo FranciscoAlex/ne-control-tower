@@ -16,8 +16,6 @@ import {
   Avatar,
   Chip,
   Divider,
-  Snackbar,
-  Alert,
   alpha,
   CircularProgress,
   Tooltip,
@@ -29,13 +27,16 @@ import {
   Trash2,
   Edit3,
   GripVertical,
-  Save,
   Upload,
   X,
   Network,
   User,
   Building,
   RefreshCw,
+  Eye,
+  EyeOff,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import {
   DndContext,
@@ -66,6 +67,8 @@ import { CSS } from '@dnd-kit/utilities';
 interface DepartmentDTO {
   id: string;
   label: string;
+  titles?: string[];
+  titlesBgColor?: string;
   bgColor?: string;
   textColor?: string;
 }
@@ -80,6 +83,7 @@ interface DirectorDTO {
   photoUrl?: string | null;
   bio?: string;
   isCEO?: boolean;
+  isVisible?: boolean;
   cardBgColor?: string;
   cardTextColor?: string;
   displayOrder: number;
@@ -90,6 +94,7 @@ interface TopNodeDTO {
   id: string;
   label: string;
   type: 'governing' | 'support';
+  isVisible?: boolean;
   bgColor?: string;
   textColor?: string;
   parentId?: string;
@@ -100,6 +105,9 @@ interface OrganigramDTO {
     version: string;
     updatedAt: string;
     description: string;
+  };
+  settings?: {
+    showHierarchy?: boolean;
   };
   topNodes: TopNodeDTO[];
   directors: DirectorDTO[];
@@ -114,20 +122,20 @@ const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/
 
 function ColorInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <Typography variant="caption" sx={{ minWidth: 80, fontWeight: 600 }}>{label}</Typography>
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, overflow: 'hidden' }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, flexShrink: 0 }}>{label}</Typography>
       <Box
         component="input"
         type="color"
         value={value || '#11448b'}
         onChange={(e: any) => onChange(e.target.value)}
-        sx={{ width: 36, height: 36, border: '2px solid #e2e8f0', borderRadius: 1.5, cursor: 'pointer', p: 0.3 }}
+        sx={{ width: 32, height: 32, flexShrink: 0, border: '2px solid #e2e8f0', borderRadius: 1.5, cursor: 'pointer', p: 0.3 }}
       />
       <TextField
         size="small"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        sx={{ width: 100 }}
+        sx={{ flex: 1, minWidth: 0 }}
         placeholder="#hex"
       />
     </Stack>
@@ -176,15 +184,7 @@ function CanvasDirectorCard({
         <GripVertical size={16} />
       </Box>
 
-      {/* Avatar */}
-        <Avatar
-          src={director.photoUrl || undefined}
-          sx={{ width: 34, height: 34, fontSize: 11, fontWeight: 800, flexShrink: 0, bgcolor: alpha(director.cardTextColor || '#11448b', 0.1), color: director.cardTextColor || '#11448b' }}
-        >
-          {director.initials}
-        </Avatar>
-
-        {/* Info */}
+      {/* Info */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
             <Typography sx={{ fontWeight: 800, fontSize: 12, color: director.cardTextColor || '#11448b', lineHeight: 1.3 }}>
@@ -263,15 +263,16 @@ function CanvasColumn({
     disabled: !topNode,
   });
 
-  const headerBg = topNode ? topNode.bgColor || (topNode.type === 'governing' ? '#d3161c' : '#11448b') : '#475569';
-  const headerText = topNode?.textColor || '#fff';
+  const nodeHidden = topNode?.isVisible === false;
+  const headerBg = nodeHidden ? '#9e9e9e' : (topNode ? topNode.bgColor || (topNode.type === 'governing' ? '#d3161c' : '#11448b') : '#475569');
+  const headerText = nodeHidden ? '#fff' : (topNode?.textColor || '#fff');
   const showNestHighlight = isDraggingColumn && isNestOver && !!topNode;
 
   return (
     <Box
       ref={colRef}
       style={{ transform: CSS.Transform.toString(colTransform), transition: colTransition, opacity: colDragging ? 0.45 : 1 }}
-      sx={{ width: 268, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
+      sx={{ flex: '1 1 0', minWidth: 180, maxWidth: 280, display: 'flex', flexDirection: 'column' }}
     >
       {/* Column header — also acts as nest-drop zone */}
       <Box
@@ -303,6 +304,13 @@ function CanvasColumn({
         <Typography sx={{ fontWeight: 800, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'inherit', lineHeight: 1.2 }}>
           {topNode ? topNode.label : 'Sem Hierarquia'}
         </Typography>
+        {nodeHidden && (
+          <Tooltip title="Oculto na página pública">
+            <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, flexShrink: 0 }}>
+              <EyeOff size={13} />
+            </Box>
+          </Tooltip>
+        )}
         {topNode && (
           <Stack direction="row" className="col-actions" spacing={0} sx={{ flexShrink: 0 }}>
             {topNode.parentId && onUnNest && (
@@ -313,7 +321,6 @@ function CanvasColumn({
               </Tooltip>
             )}
             <Tooltip title="Editar nó"><IconButton size="small" onClick={onEditTopNode} sx={{ color: 'inherit', p: 0.3 }}><Edit3 size={12} /></IconButton></Tooltip>
-            <Tooltip title="Remover nó"><IconButton size="small" onClick={onDeleteTopNode} sx={{ color: 'inherit', p: 0.3 }}><Trash2 size={12} /></IconButton></Tooltip>
           </Stack>
         )}
       </Box>
@@ -391,6 +398,7 @@ function DirectorFormDialog({
     photoUrl: null,
     bio: '',
     isCEO: false,
+    isVisible: true,
     cardBgColor: '#ffffff',
     cardTextColor: '#11448b',
     displayOrder: 99,
@@ -400,7 +408,7 @@ function DirectorFormDialog({
 
   useEffect(() => {
     if (director) {
-      setForm({ ...director });
+      setForm({ ...director, isVisible: director.isVisible !== false });
       setImagePreview(director.photoUrl || null);
     } else {
       setForm({
@@ -413,6 +421,7 @@ function DirectorFormDialog({
         photoUrl: null,
         bio: '',
         isCEO: false,
+        isVisible: true,
         cardBgColor: '#ffffff',
         cardTextColor: '#11448b',
         displayOrder: 99,
@@ -450,8 +459,9 @@ function DirectorFormDialog({
   return (
     <>
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-      <DialogTitle sx={{ fontWeight: 800 }}>
+      <DialogTitle sx={{ fontWeight: 800, pr: 6 }}>
         {isNew ? 'Novo Membro' : `Editar – ${form.name}`}
+        <IconButton onClick={onClose} size="small" sx={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }}><X size={18} /></IconButton>
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
@@ -495,25 +505,6 @@ function DirectorFormDialog({
             )}
           </Box>
 
-          {/* Photo upload */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar
-              src={imagePreview || undefined}
-              sx={{ width: 72, height: 72, bgcolor: form.cardBgColor, color: form.cardTextColor, fontWeight: 800, fontSize: 22, border: `2px solid ${form.cardTextColor}` }}
-            >
-              {form.initials || '?'}
-            </Avatar>
-            <Button component="label" variant="outlined" startIcon={<Upload size={16} />} sx={{ borderRadius: 2, textTransform: 'none' }}>
-              Carregar Foto
-              <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
-            </Button>
-            {imagePreview && (
-              <IconButton size="small" onClick={() => { setImagePreview(null); updateField('photoUrl', null); }}>
-                <X size={16} />
-              </IconButton>
-            )}
-          </Box>
-
           <Grid container spacing={2}>
             <Grid size={{ xs: 6 }}>
               <TextField fullWidth size="small" label="Nome Completo" value={form.name} onChange={(e) => updateField('name', e.target.value)} />
@@ -540,10 +531,27 @@ function DirectorFormDialog({
             label="É CEO / Presidente da Comissão Executiva"
           />
 
+          <Box
+            onClick={() => updateField('isVisible', form.isVisible === false)}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', p: 1, borderRadius: 2, border: '1px solid', borderColor: form.isVisible === false ? '#f87171' : '#86efac', bgcolor: form.isVisible === false ? '#fef2f2' : '#f0fdf4', userSelect: 'none', transition: 'all 0.15s' }}
+          >
+            {form.isVisible === false ? <EyeOff size={16} color="#dc2626" /> : <Eye size={16} color="#16a34a" />}
+            <Box>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: form.isVisible === false ? '#dc2626' : '#16a34a', lineHeight: 1.2 }}>
+                {form.isVisible === false ? 'Oculto na página pública' : 'Visível na página pública'}
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: '#64748b', lineHeight: 1.2 }}>
+                {form.isVisible === false ? 'Este membro não aparece no site' : 'Clique para ocultar'}
+              </Typography>
+            </Box>
+          </Box>
+
           <Divider />
           <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Cores do Cartão</Typography>
-          <ColorInput label="Fundo" value={form.cardBgColor || '#ffffff'} onChange={(v) => updateField('cardBgColor', v)} />
-          <ColorInput label="Texto" value={form.cardTextColor || '#11448b'} onChange={(v) => updateField('cardTextColor', v)} />
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Box sx={{ flex: 1 }}><ColorInput label="Fundo" value={form.cardBgColor || '#ffffff'} onChange={(v) => updateField('cardBgColor', v)} /></Box>
+            <Box sx={{ flex: 1 }}><ColorInput label="Texto" value={form.cardTextColor || '#11448b'} onChange={(v) => updateField('cardTextColor', v)} /></Box>
+          </Box>
 
           {/* Departments */}
           <Divider />
@@ -555,11 +563,20 @@ function DirectorFormDialog({
           </Stack>
           <Stack spacing={0.75}>
             {form.departments.map((dept) => (
-              <Box key={dept.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.25, borderRadius: 2, bgcolor: dept.bgColor || '#11448b', color: dept.textColor || '#fff' }}>
-                <Typography sx={{ fontSize: 12, fontWeight: 700, flex: 1, color: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dept.label}</Typography>
-                <Chip label={dept.id} size="small" sx={{ height: 18, fontSize: 9, bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
-                <IconButton size="small" onClick={() => setDeptDialog({ open: true, dept })} sx={{ color: 'inherit', p: 0.3 }}><Edit3 size={12} /></IconButton>
-                <IconButton size="small" onClick={() => updateField('departments', form.departments.filter((d) => d.id !== dept.id))} sx={{ color: 'inherit', p: 0.3 }}><Trash2 size={12} /></IconButton>
+              <Box key={dept.id} sx={{ borderRadius: 2, bgcolor: dept.bgColor || '#11448b', color: dept.textColor || '#fff', overflow: 'hidden' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.25, py: 1 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, flex: 1, color: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dept.label}</Typography>
+                  <Chip label={dept.id} size="small" sx={{ height: 18, fontSize: 9, bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
+                  <IconButton size="small" onClick={() => setDeptDialog({ open: true, dept })} sx={{ color: 'inherit', p: 0.3 }}><Edit3 size={12} /></IconButton>
+                  <IconButton size="small" onClick={() => updateField('departments', form.departments.filter((d) => d.id !== dept.id))} sx={{ color: 'inherit', p: 0.3 }}><Trash2 size={12} /></IconButton>
+                </Box>
+                {dept.titles && dept.titles.length > 0 && (
+                  <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.2)', px: 1.25, pb: 0.75 }}>
+                    {dept.titles.map((t, i) => (
+                      <Typography key={i} sx={{ fontSize: 10, color: 'inherit', opacity: 0.85, lineHeight: 1.6 }}>• {t}</Typography>
+                    ))}
+                  </Box>
+                )}
               </Box>
             ))}
             {form.departments.length === 0 && <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>Sem departamentos associados.</Typography>}
@@ -577,7 +594,6 @@ function DirectorFormDialog({
             Eliminar membro
           </Button>
         )}
-        <Button onClick={onClose} sx={{ borderRadius: 2 }}>Cancelar</Button>
         <Button
           variant="contained"
           onClick={() => onSave(form)}
@@ -610,32 +626,72 @@ function DepartmentFormDialog({
   const [form, setForm] = useState<DepartmentDTO>({
     id: '',
     label: '',
+    titles: [],
+    titlesBgColor: 'rgba(255,255,255,0.15)',
     bgColor: '#11448b',
     textColor: '#ffffff',
   });
+  const [newTitle, setNewTitle] = useState('');
 
   useEffect(() => {
     if (department) {
-      setForm({ ...department });
+      setForm({ ...department, titles: department.titles || [], titlesBgColor: department.titlesBgColor || 'rgba(255,255,255,0.15)' });
     } else {
-      setForm({ id: `dept-${Date.now().toString(36)}`, label: '', bgColor: '#11448b', textColor: '#ffffff' });
+      setForm({ id: `dept-${Date.now().toString(36)}`, label: '', titles: [], titlesBgColor: 'rgba(255,255,255,0.15)', bgColor: '#11448b', textColor: '#ffffff' });
     }
+    setNewTitle('');
   }, [department, open]);
+
+  const addTitle = () => {
+    const t = newTitle.trim();
+    if (!t) return;
+    setForm({ ...form, titles: [...(form.titles || []), t] });
+    setNewTitle('');
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-      <DialogTitle sx={{ fontWeight: 800 }}>{isNew ? 'Novo Departamento' : 'Editar Departamento'}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800, pr: 6 }}>{isNew ? 'Novo Departamento' : 'Editar Departamento'}<IconButton onClick={onClose} size="small" sx={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }}><X size={18} /></IconButton></DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField fullWidth size="small" label="ID (ex: DCE)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} disabled={!isNew} />
           <TextField fullWidth size="small" label="Nome do Departamento" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
-          <ColorInput label="Fundo" value={form.bgColor || '#11448b'} onChange={(v) => setForm({ ...form, bgColor: v })} />
-          <ColorInput label="Texto" value={form.textColor || '#ffffff'} onChange={(v) => setForm({ ...form, textColor: v })} />
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Box sx={{ flex: 1 }}><ColorInput label="Fundo" value={form.bgColor || '#11448b'} onChange={(v) => setForm({ ...form, bgColor: v })} /></Box>
+            <Box sx={{ flex: 1 }}><ColorInput label="Texto" value={form.textColor || '#ffffff'} onChange={(v) => setForm({ ...form, textColor: v })} /></Box>
+          </Box>
+
+          <Divider />
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Títulos / Cargos ({(form.titles || []).length})</Typography>
+            <Box sx={{ width: 140 }}><ColorInput label="Fundo dos títulos" value={form.titlesBgColor || 'rgba(255,255,255,0.15)'} onChange={(v) => setForm({ ...form, titlesBgColor: v })} /></Box>
+          </Box>
+          <Stack spacing={0.5}>
+            {(form.titles || []).map((t, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.75, borderRadius: 1.5, bgcolor: '#f1f5f9' }}>
+                <Typography sx={{ fontSize: 12, flex: 1 }}>{t}</Typography>
+                <IconButton size="small" onClick={() => setForm({ ...form, titles: (form.titles || []).filter((_, idx) => idx !== i) })} sx={{ p: 0.3 }}><Trash2 size={12} /></IconButton>
+              </Box>
+            ))}
+            {(form.titles || []).length === 0 && (
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>Nenhum título ainda.</Typography>
+            )}
+          </Stack>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Novo título..."
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTitle(); } }}
+            />
+            <Button variant="outlined" onClick={addTitle} disabled={!newTitle.trim()} sx={{ borderRadius: 2, textTransform: 'none', flexShrink: 0 }}>Adicionar</Button>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} sx={{ borderRadius: 2 }}>Cancelar</Button>
-        <Button variant="contained" onClick={() => onSave(form)} disabled={!form.label} sx={{ borderRadius: 2, fontWeight: 700 }}>
+        <Button variant="contained" onClick={() => onSave(form)} disabled={!form.label} sx={{ borderRadius: 2, fontWeight: 700, ml: 'auto' }}>
           {isNew ? 'Adicionar' : 'Guardar'}
         </Button>
       </DialogActions>
@@ -650,12 +706,14 @@ function TopNodeFormDialog({
   node,
   onClose,
   onSave,
+  onDelete,
   defaultParentId,
 }: {
   open: boolean;
   node: TopNodeDTO | null;
   onClose: () => void;
   onSave: (n: TopNodeDTO) => void;
+  onDelete?: () => void;
   defaultParentId?: string;
 }) {
   const isNew = !node;
@@ -663,21 +721,22 @@ function TopNodeFormDialog({
     id: '',
     label: '',
     type: 'governing',
+    isVisible: true,
     bgColor: '#d3161c',
     textColor: '#ffffff',
   });
 
   useEffect(() => {
     if (node) {
-      setForm({ ...node });
+      setForm({ ...node, isVisible: node.isVisible !== false });
     } else {
-      setForm({ id: `node-${Date.now().toString(36)}`, label: '', type: 'governing', bgColor: '#d3161c', textColor: '#ffffff', parentId: defaultParentId || '' });
+      setForm({ id: `node-${Date.now().toString(36)}`, label: '', type: 'governing', isVisible: true, bgColor: '#d3161c', textColor: '#ffffff', parentId: defaultParentId || '' });
     }
   }, [node, open]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-      <DialogTitle sx={{ fontWeight: 800 }}>{isNew ? 'Novo Nó Hierárquico' : 'Editar Nó'}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800, pr: 6 }}>{isNew ? 'Novo Nó Hierárquico' : 'Editar Nó'}<IconButton onClick={onClose} size="small" sx={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }}><X size={18} /></IconButton></DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField fullWidth size="small" label="ID (ex: CA)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} disabled={!isNew} />
@@ -709,13 +768,31 @@ function TopNodeFormDialog({
             <MenuItem value="governing">Órgão de Governação (vermelho)</MenuItem>
             <MenuItem value="support">Gabinete de Apoio (azul)</MenuItem>
           </TextField>
-          <ColorInput label="Fundo" value={form.bgColor || '#d3161c'} onChange={(v) => setForm({ ...form, bgColor: v })} />
-          <ColorInput label="Texto" value={form.textColor || '#ffffff'} onChange={(v) => setForm({ ...form, textColor: v })} />
+          <Box
+            onClick={() => setForm({ ...form, isVisible: form.isVisible !== false ? false : true })}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', p: 1, borderRadius: 2, border: '1px solid', borderColor: form.isVisible === false ? '#f87171' : '#86efac', bgcolor: form.isVisible === false ? '#fef2f2' : '#f0fdf4', userSelect: 'none', transition: 'all 0.15s' }}
+          >
+            {form.isVisible === false ? <EyeOff size={16} color="#dc2626" /> : <Eye size={16} color="#16a34a" />}
+            <Box>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: form.isVisible === false ? '#dc2626' : '#16a34a', lineHeight: 1.2 }}>
+                {form.isVisible === false ? 'Oculto na página pública' : 'Visível na página pública'}
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: '#64748b', lineHeight: 1.2 }}>
+                {form.isVisible === false ? 'Esta hierarquia não aparece no site' : 'Clique para ocultar'}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Box sx={{ flex: 1 }}><ColorInput label="Fundo" value={form.bgColor || '#d3161c'} onChange={(v) => setForm({ ...form, bgColor: v })} /></Box>
+            <Box sx={{ flex: 1 }}><ColorInput label="Texto" value={form.textColor || '#ffffff'} onChange={(v) => setForm({ ...form, textColor: v })} /></Box>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} sx={{ borderRadius: 2 }}>Cancelar</Button>
-        <Button variant="contained" onClick={() => onSave(form)} disabled={!form.label} sx={{ borderRadius: 2, fontWeight: 700 }}>
+        {!isNew && onDelete && (
+          <Button color="error" startIcon={<Trash2 size={14} />} onClick={onDelete} sx={{ borderRadius: 2, textTransform: 'none', mr: 'auto' }}>Remover</Button>
+        )}
+        <Button variant="contained" onClick={() => onSave(form)} disabled={!form.label} sx={{ borderRadius: 2, fontWeight: 700, ml: 'auto' }}>
           {isNew ? 'Adicionar' : 'Guardar'}
         </Button>
       </DialogActions>
@@ -729,7 +806,7 @@ export default function OrganigramEditor() {
   const [data, setData] = useState<OrganigramDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const [directorDialog, setDirectorDialog] = useState<{ open: boolean; director: DirectorDTO | null }>({ open: false, director: null });
@@ -770,9 +847,15 @@ export default function OrganigramEditor() {
       const res = await fetch(`${API_BASE}/organogram`);
       if (!res.ok) throw new Error('Fetch failed');
       const json: OrganigramDTO = await res.json();
-      setData(json);
+      setData({
+        ...json,
+        settings: {
+          showHierarchy: json.settings?.showHierarchy !== false,
+        },
+      });
     } catch {
-      setSnack({ open: true, message: 'Erro ao carregar organograma', severity: 'error' });
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } finally {
       setLoading(false);
     }
@@ -781,21 +864,24 @@ export default function OrganigramEditor() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ---- Save ----
-  const handleSave = async () => {
-    if (!data) return;
+  const handleSave = async (overrideData?: typeof data) => {
+    const payload = overrideData ?? data;
+    if (!payload) return;
     try {
       setSaving(true);
       const res = await fetch(`${API_BASE}/organogram`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Save failed');
       const saved = await res.json();
       setData(saved);
-      setSnack({ open: true, message: 'Organograma guardado com sucesso!', severity: 'success' });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
     } catch {
-      setSnack({ open: true, message: 'Erro ao guardar organograma', severity: 'error' });
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } finally {
       setSaving(false);
     }
@@ -805,12 +891,12 @@ export default function OrganigramEditor() {
   const handleSaveDirector = (dir: DirectorDTO) => {
     if (!data) return;
     const exists = data.directors.find((d) => d.id === dir.id);
-    if (exists) {
-      setData({ ...data, directors: data.directors.map((d) => (d.id === dir.id ? dir : d)) });
-    } else {
-      setData({ ...data, directors: [...data.directors, { ...dir, displayOrder: data.directors.length + 1 }] });
-    }
+    const updated = exists
+      ? { ...data, directors: data.directors.map((d) => (d.id === dir.id ? dir : d)) }
+      : { ...data, directors: [...data.directors, { ...dir, displayOrder: data.directors.length + 1 }] };
+    setData(updated);
     setDirectorDialog({ open: false, director: null });
+    handleSave(updated);
   };
 
   const handleDeleteDirector = (id: string) => {
@@ -822,12 +908,12 @@ export default function OrganigramEditor() {
   const handleSaveTopNode = (node: TopNodeDTO) => {
     if (!data) return;
     const exists = data.topNodes.find((n) => n.id === node.id);
-    if (exists) {
-      setData({ ...data, topNodes: data.topNodes.map((n) => (n.id === node.id ? node : n)) });
-    } else {
-      setData({ ...data, topNodes: [...data.topNodes, node] });
-    }
+    const updated = exists
+      ? { ...data, topNodes: data.topNodes.map((n) => (n.id === node.id ? node : n)) }
+      : { ...data, topNodes: [...data.topNodes, node] };
+    setData(updated);
     setTopNodeDialog({ open: false, node: null });
+    handleSave(updated);
   };
 
   const handleDeleteTopNode = (id: string) => {
@@ -966,12 +1052,7 @@ export default function OrganigramEditor() {
   return (
     <Box>
       {/* ===== Header ===== */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }} flexWrap="wrap" gap={1.5}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-            Arraste cartões entre colunas para mover membros. Arraste cabeçalhos de nós raiz para reordenar. Arraste um nó sobre outro para encaixá-lo como filho.
-          </Typography>
-        </Box>
+      <Stack direction="row" justifyContent="flex-end" alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" gap={1.5}>
         <Stack direction="row" spacing={1.5}>
           <Button variant="outlined" startIcon={<Building size={15} />} onClick={() => setTopNodeDialog({ open: true, node: null })} sx={{ borderRadius: 3, textTransform: 'none' }}>
             Novo Nó
@@ -979,23 +1060,23 @@ export default function OrganigramEditor() {
           <Button variant="outlined" startIcon={<User size={15} />} onClick={() => setDirectorDialog({ open: true, director: null })} sx={{ borderRadius: 3, textTransform: 'none' }}>
             Novo Membro
           </Button>
-          <Button variant="outlined" startIcon={<RefreshCw size={15} />} onClick={fetchData} sx={{ borderRadius: 3, textTransform: 'none' }}>
-            Recarregar
-          </Button>
           <Button
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={15} color="inherit" /> : <Save size={15} />}
-            onClick={handleSave}
+            variant={saveStatus === 'saved' || saveStatus === 'error' ? 'contained' : 'outlined'}
+            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : saveStatus === 'saved' ? <Check size={15} /> : saveStatus === 'error' ? <AlertCircle size={15} /> : <RefreshCw size={15} />}
+            onClick={fetchData}
             disabled={saving}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700, px: 3.5, boxShadow: '0 4px 6px -1px rgb(22 73 147 / 0.22)' }}
+            sx={{ borderRadius: 3, textTransform: 'none', transition: 'all 0.2s', ...(saveStatus === 'saved' ? { bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, borderColor: '#16a34a', color: '#fff' } : saveStatus === 'error' ? { bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, borderColor: '#dc2626', color: '#fff' } : {}) }}
           >
-            {saving ? 'A guardar...' : 'Guardar Alterações'}
+            {saving ? 'A guardar...' : saveStatus === 'saved' ? 'Guardado' : saveStatus === 'error' ? 'Erro' : 'Recarregar'}
           </Button>
         </Stack>
       </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Arraste cartões entre colunas para mover membros. Arraste cabeçalhos de nós raiz para reordenar. Arraste um nó sobre outro para encaixá-lo como filho.
+      </Typography>
 
       {/* ===== Canvas ===== */}
-      <Paper sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#f8fafc', overflowX: 'auto', overflowY: 'visible', minHeight: 520 }}>
+      <Paper sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#f8fafc', overflow: 'visible', minHeight: 520 }}>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
           <Stack direction="row" spacing={0.5} alignItems="center">
             <GripVertical size={13} color="#94a3b8" />
@@ -1014,7 +1095,7 @@ export default function OrganigramEditor() {
 
         <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <SortableContext items={data.topNodes.filter((n) => !n.parentId).map((n) => n.id)} strategy={horizontalListSortingStrategy}>
-            <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ minWidth: 'max-content', pb: 1 }}>
+            <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ flexWrap: 'wrap', pb: 1 }}>
               {(() => {
                 const isCDragging = !!activeId && !!data.topNodes.find((n) => n.id === activeId);
                 const renderColumn = (tree: ColumnTree, d: number): ReactNode => {
@@ -1040,7 +1121,7 @@ export default function OrganigramEditor() {
                           id: `dir-${Date.now().toString(36)}`,
                           topNodeId: col.id === 'unassigned' ? '' : col.id,
                           personLabel: '', name: '', title: '', initials: '', photoUrl: null,
-                          bio: '', isCEO: false, cardBgColor: '#ffffff', cardTextColor: '#11448b',
+                          bio: '', isCEO: false, isVisible: true, cardBgColor: '#ffffff', cardTextColor: '#11448b',
                           displayOrder: data.directors.length + 1, departments: [],
                         },
                       })}
@@ -1074,7 +1155,7 @@ export default function OrganigramEditor() {
             {activeDirector ? (
               <Paper elevation={12} sx={{ p: 1.5, borderRadius: 2.5, width: 252, bgcolor: activeDirector.cardBgColor || '#fff', border: `2px solid ${activeDirector.cardTextColor || '#11448b'}`, opacity: 0.93 }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <Avatar src={activeDirector.photoUrl || undefined} sx={{ width: 32, height: 32, fontSize: 11, fontWeight: 800, bgcolor: alpha(activeDirector.cardTextColor || '#11448b', 0.1), color: activeDirector.cardTextColor || '#11448b' }}>
+                  <Avatar sx={{ width: 32, height: 32, fontSize: 11, fontWeight: 800, bgcolor: alpha(activeDirector.cardTextColor || '#11448b', 0.1), color: activeDirector.cardTextColor || '#11448b' }}>
                     {activeDirector.initials}
                   </Avatar>
                   <Box>
@@ -1107,14 +1188,10 @@ export default function OrganigramEditor() {
         defaultParentId={topNodeDialog.defaultParentId}
         onClose={() => setTopNodeDialog({ open: false, node: null })}
         onSave={handleSaveTopNode}
+        onDelete={topNodeDialog.node ? () => { handleDeleteTopNode(topNodeDialog.node!.id); setTopNodeDialog({ open: false, node: null }); } : undefined}
       />
 
-      {/* ===== Snackbar ===== */}
-      <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack({ ...snack, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={snack.severity} variant="filled" sx={{ borderRadius: 3, fontWeight: 600 }}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
+
     </Box>
   );
 }

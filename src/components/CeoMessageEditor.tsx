@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Upload, Save } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
+import SharedImagePickerDialog from './SharedImagePickerDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -41,6 +42,7 @@ export default function CeoMessageEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -163,6 +165,13 @@ export default function CeoMessageEditor() {
             >
               {uploading ? 'A carregar…' : 'Carregar Foto'}
             </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setImageLibraryOpen(true)}
+              sx={{ textTransform: 'none', ml: 1 }}
+            >
+              Biblioteca de imagens
+            </Button>
             {data.photoUrl && (
               <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5, maxWidth: 360, wordBreak: 'break-all' }}>
                 {data.photoUrl}
@@ -236,6 +245,13 @@ export default function CeoMessageEditor() {
           Última actualização: {data.updatedAt}
         </Typography>
       )}
+
+      <SharedImagePickerDialog
+        open={imageLibraryOpen}
+        onClose={() => setImageLibraryOpen(false)}
+        onSelect={(url) => setData(prev => ({ ...prev, photoUrl: url }))}
+        title="Biblioteca de imagens do CEO"
+      />
     </Box>
   );
 }

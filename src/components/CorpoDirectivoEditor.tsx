@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
+import SharedImagePickerDialog from './SharedImagePickerDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -42,6 +43,7 @@ function MemberCard({ member, onSave, onDelete }: {
   const [data, setData] = useState<BoardMember>(member);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<'cv' | 'photo' | null>(null);
+  const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const cvRef = useRef<HTMLInputElement>(null);
@@ -115,6 +117,7 @@ function MemberCard({ member, onSave, onDelete }: {
               <TextField label="URL da Fotografia" value={data.photoUrl} onChange={e => setData(p => ({ ...p, photoUrl: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="https://..." />
               {editing && member.id && (
                 <><Button size="small" variant="outlined" startIcon={uploading === 'photo' ? <CircularProgress size={13} /> : <Upload size={13} />} onClick={() => photoRef.current?.click()} disabled={!!uploading} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Foto</Button>
+                  <Button size="small" variant="outlined" onClick={() => setImageLibraryOpen(true)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Biblioteca</Button>
                   <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'photoUrl', 'photo'); e.target.value = ''; }} /></>
               )}
             </Stack>
@@ -130,6 +133,13 @@ function MemberCard({ member, onSave, onDelete }: {
           </Stack>
         </Box>
       </Collapse>
+
+      <SharedImagePickerDialog
+        open={imageLibraryOpen}
+        onClose={() => setImageLibraryOpen(false)}
+        onSelect={(url) => setData(p => ({ ...p, photoUrl: url }))}
+        title="Biblioteca de fotos do corpo directivo"
+      />
     </Paper>
   );
 }

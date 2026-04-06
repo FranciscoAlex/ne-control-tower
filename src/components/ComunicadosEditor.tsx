@@ -23,6 +23,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Image,
   Link,
   Pencil,
   Plus,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
+import SharedImagePickerDialog from './SharedImagePickerDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -152,6 +154,7 @@ function CommunicationCard({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -195,16 +198,16 @@ function CommunicationCard({
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !comm.id) return;
+    if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
     try {
       setUploadingCover(true);
-      const res = await fetch(`${API_BASE}/communications/${comm.id}/upload?field=image`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/media-assets/images/upload`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error();
       const saved = await res.json();
       setData(p => ({ ...p, imageUrl: saved.url || saved.imageUrl || p.imageUrl }));
-      setMsg({ type: 'success', text: `Capa "${file.name}" carregada com sucesso.` });
+      setMsg({ type: 'success', text: `Imagem "${file.name}" carregada para biblioteca e aplicada.` });
     } catch {
       setMsg({ type: 'error', text: 'Erro ao carregar imagem de capa.' });
     } finally {
@@ -392,7 +395,7 @@ function CommunicationCard({
             {/* Cover image upload + preview */}
             {(editing || data.imageUrl) && (
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                {editing && comm.id && (
+                {editing && (
                   <>
                     <Button
                       size="small"
@@ -402,9 +405,18 @@ function CommunicationCard({
                       disabled={uploadingCover}
                       sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}
                     >
-                      {uploadingCover ? 'A carregar...' : 'Upload Capa'}
+                      {uploadingCover ? 'A carregar...' : 'Carregar Imagem'}
                     </Button>
                     <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverUpload} />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Image size={14} />}
+                      onClick={() => setImageLibraryOpen(true)}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}
+                    >
+                      Biblioteca
+                    </Button>
                   </>
                 )}
                 {data.imageUrl && (
@@ -424,6 +436,16 @@ function CommunicationCard({
               </Box>
             )}
           </Stack>
+
+          <SharedImagePickerDialog
+            open={imageLibraryOpen}
+            onClose={() => setImageLibraryOpen(false)}
+            onSelect={(url) => {
+              setData((p) => ({ ...p, imageUrl: url }));
+              setMsg({ type: 'success', text: 'Imagem seleccionada da biblioteca.' });
+            }}
+            title="Biblioteca de imagens (Notícias)"
+          />
 
           <Divider sx={{ my: 2 }} />
 
@@ -472,6 +494,33 @@ function NewCommunicationForm({
   const [data, setData] = useState<Communication>(emptyCommunication(defaultSections));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadingCover(true);
+      const response = await fetch(`${API_BASE}/media-assets/images/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error();
+      const payload = await response.json() as { url?: string };
+      setData((p) => ({ ...p, imageUrl: payload.url || p.imageUrl }));
+    } catch {
+      setErr('Erro ao carregar imagem para a biblioteca.');
+    } finally {
+      setUploadingCover(false);
+      e.target.value = '';
+    }
+  };
 
   const handleSubmit = async () => {
     if (!data.title.trim()) { setErr('O título é obrigatório.'); return; }
@@ -510,6 +559,50 @@ function NewCommunicationForm({
           <TextField label="Autor" value={data.author} onChange={e => setData(p => ({ ...p, author: e.target.value }))} size="small" sx={{ flex: 1 }} />
         </Stack>
         <TextField label="Resumo" value={data.summary} onChange={e => setData(p => ({ ...p, summary: e.target.value }))} fullWidth multiline minRows={2} size="small" placeholder="Breve resumo visível na listagem..." />
+        <TextField
+          label="URL da Imagem"
+          value={data.imageUrl}
+          onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))}
+          fullWidth
+          size="small"
+          placeholder="https://..."
+        />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={uploadingCover ? <CircularProgress size={13} /> : <Upload size={14} />}
+            onClick={() => coverInputRef.current?.click()}
+            disabled={uploadingCover}
+            sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+          >
+            {uploadingCover ? 'A carregar...' : 'Carregar Imagem'}
+          </Button>
+          <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverUpload} />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Image size={14} />}
+            onClick={() => setImageLibraryOpen(true)}
+            sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+          >
+            Escolher da Biblioteca
+          </Button>
+        </Stack>
+        {data.imageUrl && (
+          <Box
+            component="img"
+            src={data.imageUrl}
+            sx={{
+              height: 96,
+              maxWidth: 180,
+              objectFit: 'cover',
+              borderRadius: 2,
+              border: '1px solid #e2e8f0',
+              bgcolor: '#f8fafc',
+            }}
+          />
+        )}
         <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
           <SectionCheckboxes value={data.displaySections} onChange={v => setData(p => ({ ...p, displaySections: v }))} />
         </Box>
@@ -521,6 +614,13 @@ function NewCommunicationForm({
           <Button onClick={onCancel} startIcon={<X size={14} />} sx={{ borderRadius: 2, textTransform: 'none' }}>Cancelar</Button>
         </Stack>
       </Stack>
+
+      <SharedImagePickerDialog
+        open={imageLibraryOpen}
+        onClose={() => setImageLibraryOpen(false)}
+        onSelect={(url) => setData((p) => ({ ...p, imageUrl: url }))}
+        title="Biblioteca de imagens (Notícias)"
+      />
     </Paper>
   );
 }

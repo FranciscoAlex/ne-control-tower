@@ -16,9 +16,17 @@ import {
   Typography,
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
-import { Check, Plus, Trash2, X } from 'lucide-react';
+import { Check, Download, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
+const BODIVA_PUBLIC_API = 'https://www.bodiva.ao/website/api/GetAllDaillyTradeAmountVariation_no.php?securityCode=ENSAAAAA&timeline=0';
+const MAX_SEED_RECORDS = 180;
+
+type BodivaTradeRecord = {
+  Data: string;
+  Preco: number;
+  Quantidade: number;
+};
 
 type ShareEntry = {
   id?: number;
@@ -48,6 +56,58 @@ function emptyEntry(): ShareEntry {
 function fmt(n: number | undefined, dec = 2) {
   if (n === undefined || n === null) return '—';
   return n.toFixed(dec);
+}
+
+function toDateOnly(raw: string): string | null {
+  const datePart = raw?.split(' ')[0];
+  if (!datePart) return null;
+  const d = new Date(datePart);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0];
+}
+
+function aggregateBodivaTradesToShareEntries(trades: BodivaTradeRecord[]): ShareEntry[] {
+  const grouped = new Map<string, BodivaTradeRecord[]>();
+  const sortedTrades = [...trades].sort((a, b) => {
+    const da = new Date(a.Data).getTime();
+    const db = new Date(b.Data).getTime();
+    return da - db;
+  });
+
+  for (const trade of sortedTrades) {
+    const day = toDateOnly(trade.Data);
+    if (!day) continue;
+    if (!grouped.has(day)) {
+      grouped.set(day, []);
+    }
+    grouped.get(day)!.push(trade);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([date, dayTrades]) => {
+      const prices = dayTrades
+        .map(t => Number(t.Preco))
+        .filter(v => Number.isFinite(v));
+
+      if (prices.length === 0) return null;
+
+      const openPrice = prices[0];
+      const closePrice = prices[prices.length - 1];
+      const highPrice = Math.max(...prices);
+      const lowPrice = Math.min(...prices);
+      const volume = dayTrades.reduce((sum, t) => sum + (Number(t.Quantidade) || 0), 0);
+
+      return {
+        date,
+        openPrice,
+        closePrice,
+        highPrice,
+        lowPrice,
+        volume,
+      } as ShareEntry;
+    })
+    .filter((entry): entry is ShareEntry => Boolean(entry))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 function NewEntryForm({ onSubmit, onCancel }: { onSubmit: (e: ShareEntry) => Promise<void>; onCancel: () => void }) {
@@ -93,6 +153,8 @@ export default function BodivaEditor() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [autoSeedAttempted, setAutoSeedAttempted] = useState(false);
 
   const load = async () => {
     try {
@@ -104,6 +166,53 @@ export default function BodivaEditor() {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  const seedInitialData = async () => {
+    try {
+      setSeeding(true);
+
+      const publicResponse = await fetch(BODIVA_PUBLIC_API);
+      if (!publicResponse.ok) {
+        throw new Error('Falha ao obter dados públicos da BODIVA.');
+      }
+
+      const tradeData = (await publicResponse.json()) as BodivaTradeRecord[];
+      const aggregated = aggregateBodivaTradesToShareEntries(Array.isArray(tradeData) ? tradeData : []);
+      if (aggregated.length === 0) {
+        throw new Error('Sem dados válidos para importação.');
+      }
+
+      const existingDates = new Set(entries.map(e => e.date));
+      const candidates = aggregated
+        .filter(entry => !existingDates.has(entry.date))
+        .slice(0, MAX_SEED_RECORDS);
+
+      if (candidates.length === 0) {
+        setMsg({ type: 'success', text: 'Dados iniciais já estão carregados.' });
+        return;
+      }
+
+      let imported = 0;
+      for (const item of candidates) {
+        const response = await fetch(`${API_BASE}/bodiva-share-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item),
+        });
+
+        if (response.ok) {
+          imported += 1;
+        }
+      }
+
+      await load();
+      setMsg({ type: imported > 0 ? 'success' : 'error', text: imported > 0 ? `Importação concluída: ${imported} registos BODIVA.` : 'Não foi possível importar novos registos.' });
+    } catch {
+      setMsg({ type: 'error', text: 'Falha ao inicializar dados BODIVA.' });
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const handleCreate = async (e: ShareEntry) => {
     const r = await fetch(`${API_BASE}/bodiva-share-history`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
@@ -122,13 +231,30 @@ export default function BodivaEditor() {
 
   const latest = entries[0];
 
+  useEffect(() => {
+    if (loading || seeding || autoSeedAttempted || entries.length > 0) return;
+    setAutoSeedAttempted(true);
+    seedInitialData();
+  }, [loading, seeding, autoSeedAttempted, entries.length]);
+
   return (
     <Box sx={{ pb: 6 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Cotações históricas da acção ENSA na Bolsa de Dívida e Valores de Angola.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Nova Cotação</Button>
+        <Stack direction="row" spacing={1.2}>
+          <Button
+            variant="outlined"
+            startIcon={seeding ? <CircularProgress size={14} /> : <Download size={16} />}
+            onClick={seedInitialData}
+            disabled={loading || seeding}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}
+          >
+            {seeding ? 'A importar...' : 'Inicializar Dados'}
+          </Button>
+          <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Nova Cotação</Button>
+        </Stack>
       </Stack>
       <PageUrlBanner urls={{ label: 'Dashboard Financeiro', path: '/dashboard-financeiro' }} />
       {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
@@ -169,7 +295,7 @@ export default function BodivaEditor() {
               </TableHead>
               <TableBody>
                 {entries.length === 0
-                  ? <TableRow><TableCell colSpan={8} sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>Sem dados BODIVA registados.</TableCell></TableRow>
+                  ? <TableRow><TableCell colSpan={8} sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>Sem dados BODIVA registados. Clique em "Inicializar Dados" para importar o histórico inicial.</TableCell></TableRow>
                   : entries.map(e => (
                     <TableRow key={e.id} hover>
                       <TableCell sx={{ fontWeight: 600 }}>{new Date(e.date).toLocaleDateString('pt-AO')}</TableCell>

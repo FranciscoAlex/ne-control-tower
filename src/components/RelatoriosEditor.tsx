@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import { Check, ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -176,7 +177,7 @@ function GovReportCard({ item, onSave, onDelete }: {
   const [data, setData] = useState<GovernanceReport>(item);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -347,21 +348,44 @@ const DESTAQUE_DEFAULTS: DestaqueData = {
   description: '',
   downloadUrl: '',
   downloadLabel: 'Baixar Relatório Completo',
-  statCards: [],
+  statCards: [
+    { id: 'premios-brutos', label: 'Prémios Brutos Emitidos', value: '473.1B AOA', trend: '+12.5% vs 2023', progressValue: 0, showProgress: false, note: '' },
+    { id: 'resultado-liquido', label: 'Resultado Líquido', value: '18.4B AOA', trend: '+8.2% vs 2023', progressValue: 0, showProgress: false, note: '' },
+    { id: 'quota-mercado', label: 'Quota de Mercado', value: '37%', trend: '+2.1% vs 2023', progressValue: 37, showProgress: true, note: '' },
+    { id: 'capital-proprio', label: 'Capital Próprio', value: '98.4B AOA', trend: '+5.4% vs 2023', progressValue: 0, showProgress: false, note: '' },
+  ],
 };
 
 function DestaqueEditor() {
   const [data, setData] = useState<DestaqueData>(DESTAQUE_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/annual-report-destaque`)
       .then(r => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d: DestaqueData) => setData(d))
-      .catch(() => setData(DESTAQUE_DEFAULTS))
+      .then((d: DestaqueData) => {
+        const initialised = d.statCards && d.statCards.length > 0 ? d : { ...d, statCards: DESTAQUE_DEFAULTS.statCards };
+        setData(initialised);
+        if (!d.statCards || d.statCards.length === 0) {
+          // auto-seed the 4 KPI cards into the backend
+          fetch(`${API_BASE}/annual-report-destaque`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(initialised),
+          }).catch(() => { /* silent — user can always save manually */ });
+        }
+      })
+      .catch(() => {
+        setData(DESTAQUE_DEFAULTS);
+        fetch(`${API_BASE}/annual-report-destaque`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(DESTAQUE_DEFAULTS),
+        }).catch(() => { /* silent */ });
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -409,7 +433,7 @@ function DestaqueEditor() {
             Cartão Destaque (banner azul)
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
-            Banner principal no topo da página <code>/ensa/relatorio-contas</code>.
+            Banner principal no topo da página <code>/ensa/relatorio-contas</code> (sem os cartões KPI).
           </Typography>
         </Box>
         <Button
@@ -486,7 +510,7 @@ function DestaqueEditor() {
       <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Cartões de Métricas (lado direito do banner)
+            Cartões de Métricas (abaixo do banner)
           </Typography>
           <Button
             size="small"
@@ -497,6 +521,32 @@ function DestaqueEditor() {
           >
             Adicionar Métrica
           </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="warning"
+              startIcon={<RefreshCw size={13} />}
+              onClick={async () => {
+                setData(p => ({ ...p, statCards: DESTAQUE_DEFAULTS.statCards }));
+                try {
+                  setSaving(true);
+                  const res = await fetch(`${API_BASE}/annual-report-destaque`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...data, statCards: DESTAQUE_DEFAULTS.statCards }),
+                  });
+                  if (!res.ok) throw new Error();
+                  setMsg({ type: 'success', text: 'Cartões repostos para os valores padrão.' });
+                } catch {
+                  setMsg({ type: 'info', text: 'Cartões repostos localmente (API offline).' });
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              Repor Cartões Padrão
+            </Button>
         </Stack>
 
         {data.statCards.length === 0 && (
