@@ -18,7 +18,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Upload, FileUp, Image as ImageIcon, FileText, RefreshCw, Copy, Eye, Trash2 } from 'lucide-react';
+import { Upload, FileUp, Image as ImageIcon, FileText, RefreshCw, Copy, Eye, Trash2, ArchiveRestore } from 'lucide-react';
+import JSZip from 'jszip';
 import PageUrlBanner from './PageUrlBanner';
 
 type AssetItem = {
@@ -84,6 +85,8 @@ export default function MediaGalleryEditor() {
   const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [bibliotecaTab, setBibliotecaTab] = useState(0);
   const [bibliotecaDrag, setBibliotecaDrag] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupProgress, setBackupProgress] = useState(0);
 
   const activeItems = tab === 0 ? images : files;
 
@@ -264,6 +267,51 @@ export default function MediaGalleryEditor() {
     }
   };
 
+  const handleBackup = async () => {
+    const allItems = [...images, ...files];
+    if (allItems.length === 0) {
+      setMsg({ type: 'error', text: 'Não há ficheiros para incluir no backup.' });
+      return;
+    }
+    setBackingUp(true);
+    setBackupProgress(0);
+    setMsg(null);
+    try {
+      const zip = new JSZip();
+      const imagesFolder = zip.folder('imagens')!;
+      const filesFolder = zip.folder('ficheiros')!;
+      let done = 0;
+      for (const item of allItems) {
+        const ext = getExtension(item);
+        const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
+        try {
+          const res = await fetch(item.url);
+          if (res.ok) {
+            const blob = await res.blob();
+            const folder = isImg ? imagesFolder : filesFolder;
+            folder.file(item.name, blob);
+          }
+        } catch {
+          // skip files that fail to fetch
+        }
+        done++;
+        setBackupProgress(Math.round((done / allItems.length) * 100));
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = `backup-galeria-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setMsg({ type: 'success', text: `Backup concluído. ${allItems.length} ficheiro(s) incluídos.` });
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao gerar backup.' });
+    } finally {
+      setBackingUp(false);
+      setBackupProgress(0);
+    }
+  };
+
   const handleDelete = async () => {
     if (!previewItem) return;
     setDeleting(true);
@@ -299,6 +347,15 @@ export default function MediaGalleryEditor() {
             sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700 }}
           >
             Biblioteca
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={backingUp ? <RefreshCw size={14} /> : <ArchiveRestore size={14} />}
+            onClick={handleBackup}
+            disabled={backingUp || loading}
+            sx={{ borderRadius: 3, textTransform: 'none' }}
+          >
+            {backingUp ? `Backup... ${backupProgress}%` : 'Backup'}
           </Button>
           <Button
             variant="outlined"
