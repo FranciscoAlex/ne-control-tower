@@ -14,7 +14,8 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
+import SharedImagePickerDialog from './SharedImagePickerDialog';
+import { Check, ChevronDown, ChevronRight, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -52,6 +53,7 @@ function MilestoneCard({ item, onSave, onDelete }: {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => { setData(item); }, [item]);
 
@@ -101,8 +103,46 @@ function MilestoneCard({ item, onSave, onDelete }: {
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                   <TextField label="Ano" type="number" value={data.milestoneYear} onChange={e => setData(p => ({ ...p, milestoneYear: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 110 }} />
                   <TextField label="Ordem de Exibição" type="number" value={data.displayOrder} onChange={e => setData(p => ({ ...p, displayOrder: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 130 }} />
-                  <TextField label="URL da Imagem" value={data.imageUrl} onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="https://..." />
                 </Stack>
+                {/* Image picker row */}
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Imagem do Card</Typography>
+                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                    {data.imageUrl && (
+                      <Box sx={{ width: 140, height: 84, borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                        <img src={data.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </Box>
+                    )}
+                    <Stack spacing={1} sx={{ flex: 1 }}>
+                      <TextField
+                        label="URL da Imagem"
+                        value={data.imageUrl}
+                        onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))}
+                        disabled={!editing}
+                        size="small"
+                        fullWidth
+                        placeholder="https://..."
+                      />
+                      {editing && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Image size={14} />}
+                          onClick={() => setPickerOpen(true)}
+                          sx={{ borderRadius: 2, textTransform: 'none', alignSelf: 'flex-start' }}
+                        >
+                          Biblioteca de Imagens
+                        </Button>
+                      )}
+                    </Stack>
+                  </Stack>
+                </Box>
+                <SharedImagePickerDialog
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  onSelect={url => { setData(p => ({ ...p, imageUrl: url })); setPickerOpen(false); }}
+                  title="Selecionar Imagem do Marco"
+                />
                 <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} disabled={!editing} size="small" fullWidth multiline minRows={2} />
                 <Divider />
                 <Typography variant="overline" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1.5 }}>Conteúdo</Typography>
@@ -125,6 +165,7 @@ function NewMilestoneForm({ onSubmit, onCancel }: { onSubmit: (m: Milestone) => 
   const [data, setData] = useState<Milestone>(empty());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const submit = async () => {
     if (!data.title.trim()) { setErr('Título obrigatório.'); return; }
     try { setSaving(true); await onSubmit(data); } catch { setErr('Erro ao criar.'); } finally { setSaving(false); }
@@ -135,16 +176,53 @@ function NewMilestoneForm({ onSubmit, onCancel }: { onSubmit: (m: Milestone) => 
       <Stack spacing={2}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} size="small" fullWidth autoFocus />
+          <TextField label="Título do Evento" value={data.eventTitle} onChange={e => setData(p => ({ ...p, eventTitle: e.target.value }))} size="small" fullWidth />
           <TextField label="Ano" type="number" value={data.milestoneYear} onChange={e => setData(p => ({ ...p, milestoneYear: Number(e.target.value) }))} size="small" sx={{ minWidth: 110 }} />
           <TextField label="Ordem" type="number" value={data.displayOrder} onChange={e => setData(p => ({ ...p, displayOrder: Number(e.target.value) }))} size="small" sx={{ minWidth: 100 }} />
         </Stack>
         <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} size="small" fullWidth multiline minRows={2} />
+        {/* Image picker */}
+        <Box>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Imagem do Card</Typography>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+            {data.imageUrl && (
+              <Box sx={{ width: 120, height: 72, borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                <img src={data.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </Box>
+            )}
+            <Stack spacing={1} sx={{ flex: 1 }}>
+              <TextField
+                label="URL da Imagem"
+                value={data.imageUrl}
+                onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))}
+                size="small"
+                fullWidth
+                placeholder="https://..."
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Image size={14} />}
+                onClick={() => setPickerOpen(true)}
+                sx={{ borderRadius: 2, textTransform: 'none', alignSelf: 'flex-start' }}
+              >
+                Biblioteca de Imagens
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
         {err && <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert>}
         <Stack direction="row" spacing={1}>
           <Button variant="contained" onClick={submit} disabled={saving || !data.title.trim()} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Criar</Button>
           <Button onClick={onCancel} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none' }}>Cancelar</Button>
         </Stack>
       </Stack>
+      <SharedImagePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={url => { setData(p => ({ ...p, imageUrl: url })); setPickerOpen(false); }}
+        title="Selecionar Imagem do Marco"
+      />
     </Paper>
   );
 }

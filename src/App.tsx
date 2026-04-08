@@ -81,8 +81,10 @@ import OrgaosSociaisEditor from './components/OrgaosSociaisEditor';
 import AcionistasEditor from './components/AcionistasEditor';
 import EventosEditor from './components/EventosEditor';
 import MercadoEditor from './components/MercadoEditor';
+import VisualIndicatorsEditor from './components/VisualIndicatorsEditor';
 import CeoMessageEditor from './components/CeoMessageEditor';
 import CarouselEditor from './components/CarouselEditor';
+import SobreNosCarouselEditor from './components/SobreNosCarouselEditor';
 import PlanoEstrategicoEditor from './components/PlanoEstrategicoEditor';
 import CorpoDiretivoEditor from './components/CorpoDiretivoEditor';
 import ParticipadasEditor from './components/ParticipadasEditor';
@@ -102,7 +104,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'VISUAL_INDICATORS' | 'CEO_MESSAGE' | 'CAROUSEL' | 'SOBRE_NOS_CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -126,11 +128,13 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   PARTICIPADAS:  '/governanca/participadas',
   EVENTOS:       '/eventos',
   MERCADO:       '/financas/mercado',
+  VISUAL_INDICATORS: '/financas/indicadores-visuais',
   MEDIA_GALLERY: '/biblioteca/galeria',
   POLITICAS:     '/governanca/politicas',
   LEGISLACAO:    '/governanca/legislacao',
   CEO_MESSAGE:   '/comunicacao/ceo',
   CAROUSEL:      '/comunicacao/carousel',
+  SOBRE_NOS_CAROUSEL: '/sobre/carousel',
   PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
 };
 
@@ -461,6 +465,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { type: 'header', text: 'Gestão Institucional' },
     { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
         { id: 'SOBRE', text: 'Quem Somos & Stats', icon: <Building2 size={18} /> },
+        { id: 'SOBRE_NOS_CAROUSEL', text: 'Carrossel Sobre Nós', icon: <Image size={18} /> },
         { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
         { id: 'APOIO', text: 'FAQ do Investidor', icon: <MessageSquare size={18} /> },
         { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
@@ -491,6 +496,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         { id: 'ANNUAL_REPORTS', text: 'Relatórios e Contas', icon: <FileText size={18} /> },
         { id: 'RATINGS', text: 'Ratings e Notações', icon: <Activity size={18} /> },
         { id: 'MERCADO', text: 'Análise de Mercado', icon: <TrendingUp size={18} /> },
+        { id: 'VISUAL_INDICATORS', text: 'Indicadores Visuais', icon: <PieChart size={18} /> },
       ]
     },
     
@@ -652,10 +658,12 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   PLANO_ESTRATEGICO: 'Plano Estratégico',
                   RATINGS: 'Ratings e Notações',
                   MERCADO: 'Análise de Mercado',
+                  VISUAL_INDICATORS: 'Indicadores Visuais',
                   COMUNICADOS: 'Comunicados e Mídia',
                   NOTICIAS: 'Notícias (Home)',
                   CEO_MESSAGE: 'Mensagem do CEO',
                   CAROUSEL: 'Carrossel Principal',
+                  SOBRE_NOS_CAROUSEL: 'Carrossel Sobre Nós',
                   ASSEMBLEIAS: 'Assembleias Gerais',
                   CALENDARIO: 'Calendário de Divulgações',
                   EVENTOS: 'Eventos Corporativos',
@@ -879,12 +887,16 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <EventosEditor />
           ) : viewMode === 'MERCADO' ? (
             <MercadoEditor />
+          ) : viewMode === 'VISUAL_INDICATORS' ? (
+            <VisualIndicatorsEditor />
           ) : viewMode === 'MEDIA_GALLERY' ? (
             <MediaGalleryEditor />
           ) : viewMode === 'CEO_MESSAGE' ? (
             <CeoMessageEditor />
           ) : viewMode === 'CAROUSEL' ? (
             <CarouselEditor />
+          ) : viewMode === 'SOBRE_NOS_CAROUSEL' ? (
+            <SobreNosCarouselEditor />
           ) : viewMode === 'PLANO_ESTRATEGICO' ? (
             <PlanoEstrategicoEditor />
           ) : viewMode === 'POLITICAS' ? (
