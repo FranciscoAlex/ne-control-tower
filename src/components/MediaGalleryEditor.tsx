@@ -87,6 +87,9 @@ export default function MediaGalleryEditor() {
   const [bibliotecaDrag, setBibliotecaDrag] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [backupProgress, setBackupProgress] = useState(0);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState(0);
+  const [restoreStats, setRestoreStats] = useState<{ ok: number; skipped: number } | null>(null);
 
   const activeItems = tab === 0 ? images : files;
 
@@ -312,6 +315,69 @@ export default function MediaGalleryEditor() {
     }
   };
 
+  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const zipFile = event.target.files?.[0];
+    event.target.value = '';
+    if (!zipFile) return;
+    if (!zipFile.name.toLowerCase().endsWith('.zip')) {
+      setMsg({ type: 'error', text: 'Selecione um ficheiro .zip válido.' });
+      return;
+    }
+    setRestoring(true);
+    setRestoreProgress(0);
+    setRestoreStats(null);
+    setMsg(null);
+    try {
+      const zip = await JSZip.loadAsync(zipFile);
+      const allowedExts = ['png','jpg','jpeg','webp','gif','bmp','svg','pdf','doc','docx','csv','txt','xls','xlsx'];
+      const entries = Object.values(zip.files).filter(
+        (f) => !f.dir && !f.name.startsWith('__MACOSX') && !f.name.split('/').pop()?.startsWith('.')
+      );
+      const validEntries = entries.filter((f) => {
+        const name = f.name.split('/').pop() || '';
+        const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+        return allowedExts.includes(ext);
+      });
+      if (validEntries.length === 0) {
+        setMsg({ type: 'error', text: 'O ZIP não contém ficheiros suportados.' });
+        return;
+      }
+      let ok = 0;
+      let skipped = 0;
+      for (let i = 0; i < validEntries.length; i++) {
+        const entry = validEntries[i];
+        const name = entry.name.split('/').pop() || entry.name;
+        const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+        const isImg = ['png','jpg','jpeg','webp','gif','bmp','svg'].includes(ext);
+        try {
+          const blob = await entry.async('blob');
+          const file = new File([blob], name, { type: blob.type });
+          const formData = new FormData();
+          formData.append('file', file);
+          const endpoint = isImg
+            ? `${API_BASE}/media-assets/images/upload`
+            : `${API_BASE}/media-assets/files/upload`;
+          const res = await fetch(endpoint, { method: 'POST', body: formData });
+          if (res.ok) { ok++; } else { skipped++; }
+        } catch {
+          skipped++;
+        }
+        setRestoreProgress(Math.round(((i + 1) / validEntries.length) * 100));
+      }
+      setRestoreStats({ ok, skipped });
+      setMsg({
+        type: ok > 0 ? 'success' : 'error',
+        text: `Restauro concluído: ${ok} ficheiro(s) importado(s)${skipped > 0 ? `, ${skipped} ignorado(s)` : ''}.`,
+      });
+      await loadAssets();
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao ler o ficheiro ZIP.' });
+    } finally {
+      setRestoring(false);
+      setRestoreProgress(0);
+    }
+  };
+
   const handleDelete = async () => {
     if (!previewItem) return;
     setDeleting(true);
@@ -352,10 +418,20 @@ export default function MediaGalleryEditor() {
             variant="outlined"
             startIcon={backingUp ? <RefreshCw size={14} /> : <ArchiveRestore size={14} />}
             onClick={handleBackup}
-            disabled={backingUp || loading}
+            disabled={backingUp || loading || restoring}
             sx={{ borderRadius: 3, textTransform: 'none' }}
           >
             {backingUp ? `Backup... ${backupProgress}%` : 'Backup'}
+          </Button>
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={restoring ? <RefreshCw size={14} /> : <Upload size={14} />}
+            disabled={restoring || backingUp || loading}
+            sx={{ borderRadius: 3, textTransform: 'none' }}
+          >
+            {restoring ? `Importar... ${restoreProgress}%` : 'Importar Backup'}
+            <input type="file" hidden accept=".zip" onChange={handleRestoreBackup} />
           </Button>
           <Button
             variant="outlined"
@@ -382,6 +458,15 @@ export default function MediaGalleryEditor() {
             A carregar ficheiro... {uploadProgress}%
           </Typography>
           <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 999 }} />
+        </Paper>
+      )}
+
+      {restoring && (
+        <Paper sx={{ p: 1.5, mb: 2, borderRadius: 2, border: '1px solid #bfdbfe', bgcolor: '#eff6ff' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#1d4ed8', mb: 0.8, display: 'block' }}>
+            A importar backup... {restoreProgress}%
+          </Typography>
+          <LinearProgress variant="determinate" value={restoreProgress} sx={{ height: 8, borderRadius: 999 }} />
         </Paper>
       )}
 
