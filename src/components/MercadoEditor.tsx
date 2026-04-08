@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -11,17 +11,24 @@ import {
   Stack,
   Tab,
   Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileUp, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
 // Categories that map to the home-page "Análise de Mercado" section
 const CAT_CARDS   = 'MERCADO_ANALISE';   // 4 key metric cards (P/E, Dividend Yield, etc.)
 const CAT_TICKER  = 'MERCADO_TICKER';    // Market ticker strip (BODIVA Ind., USD/AOA, etc.)
+const CAT_PERF    = 'MERCADO_PERFORMANCE'; // Historical performance (ENSA Stock price)
 
 type Indicator = {
   id?: number;
@@ -53,7 +60,15 @@ const DEFAULT_TICKER: Omit<Indicator, 'id'>[] = [
 const CATEGORY_COLORS: Record<string, { border: string; chipBg: string; chipText: string }> = {
   [CAT_CARDS]:  { border: '#6366f1', chipBg: '#eef2ff', chipText: '#4338ca' },
   [CAT_TICKER]: { border: '#14b8a6', chipBg: '#f0fdfa', chipText: '#0f766e' },
+  [CAT_PERF]:   { border: '#f59e0b', chipBg: '#fffbeb', chipText: '#b45309' },
 };
+
+const DEFAULT_PERF: Omit<Indicator, 'id'>[] = [
+  { title: '2023-12-31', indicatorValue: '46.000', numericValue: 46000, periodYear: 2023, periodQuarter: 4, category: CAT_PERF, unit: 'AOA' },
+  { title: '2024-03-31', indicatorValue: '45.000', numericValue: 45000, periodYear: 2024, periodQuarter: 1, category: CAT_PERF, unit: 'AOA' },
+  { title: '2024-06-30', indicatorValue: '47.500', numericValue: 47500, periodYear: 2024, periodQuarter: 2, category: CAT_PERF, unit: 'AOA' },
+  { title: '2024-09-30', indicatorValue: '46.800', numericValue: 46800, periodYear: 2024, periodQuarter: 3, category: CAT_PERF, unit: 'AOA' },
+];
 
 function emptyCard(cat: string): Indicator {
   return { title: '', indicatorValue: '', numericValue: null, periodYear: new Date().getFullYear(), periodQuarter: null, category: cat, unit: '' };
@@ -126,29 +141,136 @@ function IndicatorCard({ item, onSave, onDelete }: {
   );
 }
 
+// ---- Indicator Row for Table ----
+function IndicatorRow({ item, onSave, onDelete }: {
+  item: Indicator;
+  onSave: (i: Indicator) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [data, setData] = useState<Indicator>(item);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => { setData(item); }, [item]);
+
+  const handleSave = async () => {
+    try { setSaving(true); await onSave(data); setEditing(false); }
+    catch { alert('Erro ao guardar.'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <TableRow hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+      <TableCell sx={{ py: 1 }}>
+        {editing ? (
+          <TextField
+            size="small"
+            value={data.title}
+            onChange={e => setData(p => ({ ...p, title: e.target.value }))}
+            placeholder="YYYY-MM-DD"
+            fullWidth
+            variant="standard"
+          />
+        ) : data.title}
+      </TableCell>
+      <TableCell sx={{ py: 1 }}>
+        {editing ? (
+          <TextField
+            size="small"
+            value={data.indicatorValue}
+            onChange={e => setData(p => ({ ...p, indicatorValue: e.target.value, numericValue: parseFloat(e.target.value.replace(/[^\d.-]/g, '')) }))}
+            placeholder="Preço"
+            fullWidth
+            variant="standard"
+          />
+        ) : data.indicatorValue}
+      </TableCell>
+      <TableCell sx={{ py: 1 }}>
+        {editing ? (
+          <TextField
+            size="small"
+            value={data.unit}
+            onChange={e => setData(p => ({ ...p, unit: e.target.value }))}
+            placeholder="Moeda"
+            fullWidth
+            variant="standard"
+          />
+        ) : data.unit}
+      </TableCell>
+      <TableCell align="right" sx={{ py: 1 }}>
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {editing ? (
+            <>
+              <IconButton size="small" color="primary" onClick={handleSave} disabled={saving}>
+                {saving ? <CircularProgress size={16} /> : <Check size={18} />}
+              </IconButton>
+              <IconButton size="small" onClick={() => { setEditing(false); setData(item); }}>
+                <X size={18} />
+              </IconButton>
+            </>
+          ) : (
+            <IconButton size="small" onClick={() => setEditing(true)}>
+              <Pencil size={16} />
+            </IconButton>
+          )}
+          {item.id && (
+            confirmDelete ? (
+              <Stack direction="row" spacing={0.5}>
+                <Button size="small" color="error" onClick={() => onDelete(item.id!)} sx={{ minWidth: 0, p: 0.5, fontSize: 10 }}>OK</Button>
+                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ minWidth: 0, p: 0.5, fontSize: 10 }}>X</Button>
+              </Stack>
+            ) : (
+              <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}>
+                <Trash2 size={16} />
+              </IconButton>
+            )
+          )}
+        </Stack>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ---- Main Editor ----
 export default function MercadoEditor() {
   const [tab, setTab] = useState(0);
   const [cards, setCards]     = useState<Indicator[]>([]);
   const [ticker, setTicker]   = useState<Indicator[]>([]);
+  const [perf, setPerf]       = useState<Indicator[]>([]);
   const [loading, setLoading] = useState(true);
   const [seedingCards,  setSeedingCards]  = useState(false);
   const [seedingTicker, setSeedingTicker] = useState(false);
+  const [seedingPerf,   setSeedingPerf]   = useState(false);
+  const [importingCsv, setImportingCsv]   = useState(false);
   const [globalMsg, setGlobalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeList   = tab === 0 ? cards   : ticker;
-  const setActiveList = tab === 0 ? setCards : setTicker;
-  const activeCategory = tab === 0 ? CAT_CARDS : CAT_TICKER;
+  const getActiveList = () => {
+    if (tab === 0) return cards;
+    if (tab === 1) return ticker;
+    return perf;
+  };
+  const setActiveListFn = (newList: Indicator[] | ((prev: Indicator[]) => Indicator[])) => {
+    if (tab === 0) setCards(newList as any);
+    else if (tab === 1) setTicker(newList as any);
+    else setPerf(newList as any);
+  };
+  const activeList = getActiveList();
+  const setActiveList = setActiveListFn;
+  const activeCategory = tab === 0 ? CAT_CARDS : tab === 1 ? CAT_TICKER : CAT_PERF;
 
   const load = async () => {
     setLoading(true);
     try {
-      const [rCards, rTicker] = await Promise.all([
+      const [rCards, rTicker, rPerf] = await Promise.all([
         fetch(`${API_BASE}/business-indicators?category=${CAT_CARDS}`),
         fetch(`${API_BASE}/business-indicators?category=${CAT_TICKER}`),
+        fetch(`${API_BASE}/business-indicators?category=${CAT_PERF}`),
       ]);
       setCards(await rCards.json());
       setTicker(await rTicker.json());
+      setPerf(await rPerf.json());
     } catch { setGlobalMsg({ type: 'error', text: 'Erro ao carregar dados.' }); }
     finally { setLoading(false); }
   };
@@ -170,7 +292,7 @@ export default function MercadoEditor() {
     setActiveList(prev => prev.filter(x => x.id !== id));
   };
 
-  const seedDefaults = async (defaults: Omit<Indicator, 'id'>[], setSeedingFn: (v: boolean) => void, reloadCat: 'cards' | 'ticker') => {
+  const seedDefaults = async (defaults: Omit<Indicator, 'id'>[], setSeedingFn: (v: boolean) => void, reloadCat: 'cards' | 'ticker' | 'perf') => {
     setSeedingFn(true);
     try {
       const created = await Promise.all(
@@ -179,14 +301,56 @@ export default function MercadoEditor() {
         }).then(r => r.json()))
       );
       if (reloadCat === 'cards') setCards(created);
-      else setTicker(created);
+      else if (reloadCat === 'ticker') setTicker(created);
+      else setPerf(created);
       setGlobalMsg({ type: 'success', text: 'Dados de exemplo criados.' });
     } catch { setGlobalMsg({ type: 'error', text: 'Erro ao criar dados de exemplo.' }); }
     finally { setSeedingFn(false); }
   };
 
   const addNew = () => {
-    setActiveList(prev => [{ ...emptyCard(activeCategory) }, ...prev]);
+    setActiveList(prev => [{ ...emptyCard(activeCategory) }, ...prev] as any);
+  };
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingCsv(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim() && !l.startsWith('category'));
+        const newItems: Omit<Indicator, 'id'>[] = lines.map(line => {
+          const [date, price] = line.split(',').map(s => s.trim());
+          const dateObj = new Date(date);
+          return {
+            title: date,
+            indicatorValue: price,
+            numericValue: parseFloat(price.replace(/[^\d.-]/g, '')),
+            periodYear: dateObj.getFullYear(),
+            periodQuarter: Math.floor(dateObj.getMonth() / 3) + 1,
+            category: CAT_PERF,
+            unit: 'AOA',
+          };
+        });
+
+        const created = await Promise.all(
+          newItems.map(item => fetch(`${API_BASE}/business-indicators`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item),
+          }).then(r => r.json()))
+        );
+
+        setPerf(prev => [...created, ...prev]);
+        setGlobalMsg({ type: 'success', text: `${created.length} registos importados com sucesso.` });
+      } catch (err) {
+        setGlobalMsg({ type: 'error', text: 'Erro ao processar ficheiro CSV.' });
+      } finally {
+        setImportingCsv(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -195,9 +359,11 @@ export default function MercadoEditor() {
         <Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Indicadores e ticker de mercado exibidos na página inicial.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={16} />} onClick={addNew} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700, height: 40 }}>
-          Novo Indicador
-        </Button>
+        {tab !== 2 && (
+          <Button variant="contained" startIcon={<Plus size={16} />} onClick={addNew} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700, height: 40 }}>
+            Novo Indicador
+          </Button>
+        )}
       </Stack>
 
       <PageUrlBanner urls={[{ label: 'Home (Análise de Mercado)', path: '/' }]} />
@@ -207,6 +373,7 @@ export default function MercadoEditor() {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: '1px solid #e2e8f0' }}>
         <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Cartões de Análise</span><Chip label={cards.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#eef2ff', color: '#4338ca' }} /></Stack>} />
         <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Ticker do Mercado</span><Chip label={ticker.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f0fdfa', color: '#0f766e' }} /></Stack>} />
+        <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Desempenho (Histórico)</span><Chip label={perf.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309' }} /></Stack>} />
       </Tabs>
 
       {loading ? (
@@ -214,18 +381,19 @@ export default function MercadoEditor() {
       ) : activeList.length === 0 ? (
         <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '1px solid #e2e8f0' }}>
           <Typography variant="body2" sx={{ color: '#94a3b8', mb: 2 }}>
-            {tab === 0 ? 'Sem cartões de análise de mercado.' : 'Sem itens no ticker de mercado.'}
+            {tab === 0 ? 'Sem cartões de análise de mercado.' : tab === 1 ? 'Sem itens no ticker de mercado.' : 'Sem dados históricos de desempenho.'}
           </Typography>
           <Button
             variant="outlined"
             size="small"
             sx={{ borderRadius: 2, textTransform: 'none' }}
-            disabled={tab === 0 ? seedingCards : seedingTicker}
-            startIcon={(tab === 0 ? seedingCards : seedingTicker) ? <CircularProgress size={13} /> : undefined}
-            onClick={() => tab === 0
-              ? seedDefaults(DEFAULT_CARDS, setSeedingCards, 'cards')
-              : seedDefaults(DEFAULT_TICKER, setSeedingTicker, 'ticker')
-            }
+            disabled={tab === 0 ? seedingCards : tab === 1 ? seedingTicker : seedingPerf}
+            startIcon={(tab === 0 ? seedingCards : tab === 1 ? seedingTicker : seedingPerf) ? <CircularProgress size={13} /> : undefined}
+            onClick={() => {
+              if (tab === 0) seedDefaults(DEFAULT_CARDS, setSeedingCards, 'cards');
+              else if (tab === 1) seedDefaults(DEFAULT_TICKER, setSeedingTicker, 'ticker');
+              else seedDefaults(DEFAULT_PERF, setSeedingPerf, 'perf');
+            }}
           >
             Inicializar com dados de exemplo
           </Button>
@@ -244,14 +412,68 @@ export default function MercadoEditor() {
               O <strong>Valor</strong> é a cotação/taxa, a <strong>Unidade</strong> é a variação (ex: +1.15%).
             </Alert>
           )}
-          {activeList.map((item, idx) => (
-            <IndicatorCard
-              key={item.id ?? `new-${idx}`}
-              item={item}
-              onSave={handleSave}
-              onDelete={handleDelete}
-            />
-          ))}
+          {tab === 2 ? (
+            <Stack spacing={2} sx={{ mb: 2 }}>
+              <Alert severity="info" sx={{ borderRadius: 3 }}>
+                Introduza o histórico de cotações anualmente ou via CSV. Estes dados sobrepõem-se à API se disponíveis.
+                O formato do CSV deve ser: <code>category,Preço de Fecho</code> (Ex: 2026-03-31, 46000).
+              </Alert>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <input type="file" accept=".csv" hidden ref={fileInputRef} onChange={handleCsvImport} />
+                <Button
+                  variant="outlined"
+                  startIcon={importingCsv ? <CircularProgress size={16} /> : <FileUp size={16} />}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importingCsv}
+                  sx={{ borderRadius: 3, textTransform: 'none' }}
+                >
+                  Importar CSV (Histórico)
+                </Button>
+                <Button variant="contained" startIcon={<Plus size={16} />} onClick={addNew} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700 }}>
+                  Nova Cotação
+                </Button>
+              </Box>
+
+              <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Data / Título</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Preço</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Unidade / Moeda</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Acções</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {perf.map((item, idx) => (
+                      <IndicatorRow
+                        key={item.id ?? `new-perf-${idx}`}
+                        item={item}
+                        onSave={handleSave}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    {perf.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                          Sem dados históricos. Use o botão de importação ou carregue exemplos.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Stack>
+          ) : (
+            activeList.map((item, idx) => (
+              <IndicatorCard
+                key={item.id ?? `new-${idx}`}
+                item={item}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
+            ))
+          )}
         </>
       )}
     </Box>

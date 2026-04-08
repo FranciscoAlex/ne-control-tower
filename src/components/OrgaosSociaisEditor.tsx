@@ -19,6 +19,8 @@ import {
   Typography,
   alpha,
   Tooltip,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import { 
   ChevronDown, 
@@ -43,6 +45,8 @@ type OrganMember = {
   role: string;
   photoUrl: string;
   bio?: string;
+  showBio?: boolean;
+  otherTitles?: string[];
 };
 
 type Organ = {
@@ -50,6 +54,7 @@ type Organ = {
   title: string;
   description: string;
   color: string;
+  textColor?: string;
   members: OrganMember[];
 };
 
@@ -124,17 +129,35 @@ function MemberEditDialog({
   onSave: (updated: OrganMember) => void;
   onOpenLibrary: () => void;
 }) {
-  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '' });
+  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', showBio: true, otherTitles: [] });
+  const [newTitle, setNewTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (member) {
-      setLocalMember(member);
+      setLocalMember({ ...member, showBio: member.showBio ?? true, otherTitles: member.otherTitles ?? [] });
     } else {
-      setLocalMember({ name: '', role: '', photoUrl: '', bio: '' });
+      setLocalMember({ name: '', role: '', photoUrl: '', bio: '', showBio: true, otherTitles: [] });
     }
   }, [member, open]);
+
+  const handleAddTitle = () => {
+    if (newTitle.trim()) {
+      setLocalMember(prev => ({
+        ...prev,
+        otherTitles: [...(prev.otherTitles || []), newTitle.trim()]
+      }));
+      setNewTitle('');
+    }
+  };
+
+  const handleRemoveTitle = (index: number) => {
+    setLocalMember(prev => ({
+      ...prev,
+      otherTitles: (prev.otherTitles || []).filter((_, i) => i !== index)
+    }));
+  };
 
   const uploadPhoto = async (file: File) => {
     try {
@@ -269,6 +292,37 @@ function MemberEditDialog({
               InputProps={{ sx: { borderRadius: 2 } }}
             />
 
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', mb: 1, display: 'block' }}>
+                OUTROS CARGOS / TÍTULOS
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  placeholder="Adicionar outro cargo..."
+                  onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), handleAddTitle())}
+                  InputProps={{ sx: { borderRadius: 2 } }}
+                />
+                <Button variant="outlined" onClick={handleAddTitle} sx={{ borderRadius: 2, minWidth: 'fit-content' }}>
+                  <Plus size={20} />
+                </Button>
+              </Stack>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {(localMember.otherTitles || []).map((title, idx) => (
+                  <Chip
+                    key={idx}
+                    label={title}
+                    onDelete={() => handleRemoveTitle(idx)}
+                    size="small"
+                    sx={{ borderRadius: 1.5, fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+
             <TextField
               fullWidth
               label="URL Foto (opcional)"
@@ -287,6 +341,24 @@ function MemberEditDialog({
               multiline
               minRows={4}
               InputProps={{ sx: { borderRadius: 2 } }}
+            />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={localMember.showBio || false}
+                  onChange={e => setLocalMember(prev => ({ ...prev, showBio: e.target.checked }))}
+                  color="primary"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>Activar Bio Card</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Se activo, o cartão biográfico será exibido na aplicação principal.
+                  </Typography>
+                </Box>
+              }
             />
           </Stack>
         </DialogContent>
@@ -482,7 +554,7 @@ function OrganCard({
                   InputProps={{ sx: { borderRadius: 2 } }}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <TextField
                   label="Cor Identificadora"
                   value={organ.color}
@@ -492,6 +564,21 @@ function OrganCard({
                     sx: { borderRadius: 2 },
                     startAdornment: (
                       <Box sx={{ width: 18, height: 18, borderRadius: '4px', bgcolor: organ.color, mr: 1, border: '1px solid rgba(0,0,0,0.05)' }} />
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  label="Cor do Texto (Cards)"
+                  value={organ.textColor || '#1d1d1f'}
+                  onChange={e => onOrganChange(organIndex, { ...organ, textColor: e.target.value })}
+                  fullWidth
+                  placeholder="#1d1d1f"
+                  InputProps={{
+                    sx: { borderRadius: 2 },
+                    startAdornment: (
+                      <Box sx={{ width: 18, height: 18, borderRadius: '4px', bgcolor: organ.textColor || '#1d1d1f', mr: 1, border: '1px solid rgba(0,0,0,0.05)' }} />
                     ),
                   }}
                 />

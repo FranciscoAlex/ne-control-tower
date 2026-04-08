@@ -86,6 +86,7 @@ import CarouselEditor from './components/CarouselEditor';
 import PlanoEstrategicoEditor from './components/PlanoEstrategicoEditor';
 import CorpoDiretivoEditor from './components/CorpoDiretivoEditor';
 import ParticipadasEditor from './components/ParticipadasEditor';
+import MediaGalleryEditor from './components/MediaGalleryEditor';
 import logoEnsaSrc from './assets/logo_ensa.png';
 
 // --- Types ---
@@ -99,7 +100,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -123,6 +124,7 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   PARTICIPADAS:  '/governanca/participadas',
   EVENTOS:       '/eventos',
   MERCADO:       '/financas/mercado',
+  MEDIA_GALLERY: '/biblioteca/galeria',
   CEO_MESSAGE:   '/comunicacao/ceo',
   CAROUSEL:      '/comunicacao/carousel',
   PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
@@ -472,6 +474,9 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { id: 'ASSEMBLEIAS', text: 'Assembleias Gerais', icon: <Users size={20} /> },
     { id: 'CALENDARIO', text: 'Calendário de Divulgações', icon: <History size={20} /> },
     { id: 'EVENTOS', text: 'Eventos Corporativos', icon: <CalendarDays size={20} /> },
+
+    { type: 'header', text: 'Biblioteca' },
+    { id: 'MEDIA_GALLERY', text: 'Galeria de Ficheiros', icon: <Image size={20} /> },
   ];
 
   const stats = useMemo(() => ({
@@ -627,6 +632,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   ASSEMBLEIAS: 'Assembleias Gerais',
                   CALENDARIO: 'Calendário de Divulgações',
                   EVENTOS: 'Eventos Corporativos',
+                  MEDIA_GALLERY: 'Galeria de Ficheiros',
                   APOIO: 'Apoio ao Investidor',
                   GOVERNANCA: 'Governação',
                   FINANCAS: 'Relatórios Financeiros',
@@ -803,6 +809,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <EventosEditor />
           ) : viewMode === 'MERCADO' ? (
             <MercadoEditor />
+          ) : viewMode === 'MEDIA_GALLERY' ? (
+            <MediaGalleryEditor />
           ) : viewMode === 'CEO_MESSAGE' ? (
             <CeoMessageEditor />
           ) : viewMode === 'CAROUSEL' ? (
