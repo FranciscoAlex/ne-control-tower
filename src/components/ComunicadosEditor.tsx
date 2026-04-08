@@ -400,17 +400,6 @@ function CommunicationCard({
                     <Button
                       size="small"
                       variant="outlined"
-                      startIcon={uploadingCover ? <CircularProgress size={13} /> : <Upload size={14} />}
-                      onClick={() => coverInputRef.current?.click()}
-                      disabled={uploadingCover}
-                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}
-                    >
-                      {uploadingCover ? 'A carregar...' : 'Carregar Imagem'}
-                    </Button>
-                    <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverUpload} />
-                    <Button
-                      size="small"
-                      variant="outlined"
                       startIcon={<Image size={14} />}
                       onClick={() => setImageLibraryOpen(true)}
                       sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}
@@ -568,17 +557,6 @@ function NewCommunicationForm({
           placeholder="https://..."
         />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={uploadingCover ? <CircularProgress size={13} /> : <Upload size={14} />}
-            onClick={() => coverInputRef.current?.click()}
-            disabled={uploadingCover}
-            sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
-          >
-            {uploadingCover ? 'A carregar...' : 'Carregar Imagem'}
-          </Button>
-          <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverUpload} />
           <Button
             size="small"
             variant="outlined"

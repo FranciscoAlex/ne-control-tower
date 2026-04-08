@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -24,7 +24,6 @@ import {
   Plus, 
   Save, 
   Trash2, 
-  Upload, 
   UserPlus, 
   Edit2, 
   X,
@@ -81,8 +80,6 @@ function MemberEditDialog({
   onOpenLibrary: () => void;
 }) {
   const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '' });
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (member) {
@@ -91,25 +88,6 @@ function MemberEditDialog({
       setLocalMember({ name: '', role: '', photoUrl: '', bio: '' });
     }
   }, [member, open]);
-
-  const uploadPhoto = async (file: File) => {
-    try {
-      setUploading(true);
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${API_BASE}/media-assets/images/upload`, {
-        method: 'POST',
-        body: form,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload = await res.json() as { url?: string };
-      if (payload.url) {
-        setLocalMember(prev => ({ ...prev, photoUrl: payload.url || '' }));
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const currentInitials = localMember.name
     .split(' ')
@@ -156,53 +134,17 @@ function MemberEditDialog({
               >
                 {currentInitials}
               </Avatar>
-              <IconButton
-                size="small"
-                onClick={() => fileInputRef.current?.click()}
-                sx={{
-                  position: 'absolute',
-                  bottom: -4,
-                  right: -4,
-                  bgcolor: 'white',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  '&:hover': { bgcolor: '#f8fafc' }
-                }}
-              >
-                <Upload size={14} />
-              </IconButton>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadPhoto(file);
-                  e.target.value = '';
-                }}
-              />
             </Box>
             <Stack spacing={1} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>FOTO DO PERFIL / BG</Typography>
-              <Stack direction="row" spacing={1}>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                >
-                  {uploading ? 'A carregar...' : 'Carregar Imagem'}
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={onOpenLibrary}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                >
-                  Biblioteca
-                </Button>
-              </Stack>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={onOpenLibrary}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
+              >
+                Biblioteca
+              </Button>
             </Stack>
           </Box>
 

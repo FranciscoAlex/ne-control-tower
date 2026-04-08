@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -25,12 +25,10 @@ import {
 import { 
   ChevronDown, 
   ChevronRight, 
-  ExternalLink,
   Link,
   Plus, 
   Save, 
   Trash2, 
-  Upload, 
   UserPlus, 
   Edit2, 
   Image as ImageIcon,
@@ -49,6 +47,7 @@ type OrganMember = {
   bio?: string;
   showBio?: boolean;
   otherTitles?: string[];
+  hyperlink?: string;
 };
 
 type Organ = {
@@ -57,7 +56,6 @@ type Organ = {
   description: string;
   color: string;
   textColor?: string;
-  hyperlink?: string;
   members: OrganMember[];
 };
 
@@ -134,8 +132,6 @@ function MemberEditDialog({
 }) {
   const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', showBio: true, otherTitles: [] });
   const [newTitle, setNewTitle] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (member) {
@@ -160,25 +156,6 @@ function MemberEditDialog({
       ...prev,
       otherTitles: (prev.otherTitles || []).filter((_, i) => i !== index)
     }));
-  };
-
-  const uploadPhoto = async (file: File) => {
-    try {
-      setUploading(true);
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${API_BASE}/media-assets/images/upload`, {
-        method: 'POST',
-        body: form,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload = await res.json() as { url?: string };
-      if (payload.url) {
-        setLocalMember(prev => ({ ...prev, photoUrl: payload.url || '' }));
-      }
-    } finally {
-      setUploading(false);
-    }
   };
 
   const currentInitials = localMember.name
@@ -227,53 +204,17 @@ function MemberEditDialog({
                 >
                   {currentInitials}
                 </Avatar>
-                <IconButton
-                  size="small"
-                  onClick={() => fileInputRef.current?.click()}
-                  sx={{
-                    position: 'absolute',
-                    bottom: -4,
-                    right: -4,
-                    bgcolor: 'white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    '&:hover': { bgcolor: '#f8fafc' }
-                  }}
-                >
-                  <Upload size={14} />
-                </IconButton>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadPhoto(file);
-                    e.target.value = '';
-                  }}
-                />
               </Box>
               <Stack spacing={1} sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>FOTO DO PERFIL</Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button 
-                    size="small" 
-                    variant="outlined" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                  >
-                    {uploading ? 'A carregar...' : 'Carregar'}
-                  </Button>
-                  <Button 
-                    size="small" 
-                    variant="outlined" 
-                    onClick={() => onOpenLibrary()}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Biblioteca
-                  </Button>
-                </Stack>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={() => onOpenLibrary()}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
+                >
+                  Biblioteca
+                </Button>
               </Stack>
             </Box>
 
@@ -328,11 +269,15 @@ function MemberEditDialog({
 
             <TextField
               fullWidth
-              label="URL Foto (opcional)"
-              value={localMember.photoUrl}
-              onChange={e => setLocalMember(prev => ({ ...prev, photoUrl: e.target.value }))}
+              label="Hiperligação do Membro (URL opcional)"
+              value={localMember.hyperlink || ''}
+              onChange={e => setLocalMember(prev => ({ ...prev, hyperlink: e.target.value || undefined }))}
               placeholder="https://..."
-              InputProps={{ sx: { borderRadius: 2 } }}
+              helperText="Se definida, um ícone de link aparecerá no cartão do membro para abrir em nova aba."
+              InputProps={{
+                sx: { borderRadius: 2 },
+                startAdornment: <Link size={15} color="#64748b" style={{ marginRight: 8 }} />,
+              }}
             />
 
             <TextField
@@ -532,21 +477,6 @@ function OrganCard({
             size="small"
             sx={{ bgcolor: '#f1f5f9', color: '#64748b', fontWeight: 700, fontSize: 11 }}
           />
-          {organ.hyperlink && (
-            <Tooltip title={`Abrir: ${organ.hyperlink}`}>
-              <IconButton
-                size="small"
-                component="a"
-                href={organ.hyperlink}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                sx={{ color: '#3b82f6', '&:hover': { bgcolor: '#eff6ff' } }}
-              >
-                <ExternalLink size={15} />
-              </IconButton>
-            </Tooltip>
-          )}
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
           <IconButton
             size="small"
@@ -612,20 +542,7 @@ function OrganCard({
                   InputProps={{ sx: { borderRadius: 2 } }}
                 />
               </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  label="Hiperligação (URL opcional)"
-                  value={organ.hyperlink || ''}
-                  onChange={e => onOrganChange(organIndex, { ...organ, hyperlink: e.target.value || undefined })}
-                  fullWidth
-                  placeholder="https://..."
-                  helperText={organ.hyperlink ? 'O ícone de link será visível no cartão — clique para abrir em nova aba.' : 'Se definida, o cartão mostrará um ícone de link clicável.'}
-                  InputProps={{
-                    sx: { borderRadius: 2 },
-                    startAdornment: <Link size={15} color="#64748b" style={{ marginRight: 8 }} />,
-                  }}
-                />
-              </Grid>
+
             </Grid>
           </Stack>
 

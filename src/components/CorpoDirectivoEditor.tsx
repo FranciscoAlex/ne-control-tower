@@ -116,9 +116,8 @@ function MemberCard({ member, onSave, onDelete }: {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="flex-end">
               <TextField label="URL da Fotografia" value={data.photoUrl} onChange={e => setData(p => ({ ...p, photoUrl: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="https://..." />
               {editing && member.id && (
-                <><Button size="small" variant="outlined" startIcon={uploading === 'photo' ? <CircularProgress size={13} /> : <Upload size={13} />} onClick={() => photoRef.current?.click()} disabled={!!uploading} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Foto</Button>
-                  <Button size="small" variant="outlined" onClick={() => setImageLibraryOpen(true)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Biblioteca</Button>
-                  <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'photoUrl', 'photo'); e.target.value = ''; }} /></>
+                <><Button size="small" variant="outlined" onClick={() => setImageLibraryOpen(true)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Biblioteca</Button></>
+              )}
               )}
             </Stack>
             {/* CV URL */}

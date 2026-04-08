@@ -601,16 +601,6 @@ export default function CarouselEditor() {
                     <Button
                       fullWidth
                       variant="outlined"
-                      onClick={() => triggerUpload(editingIndex)}
-                      disabled={uploadingIndex === editingIndex}
-                      startIcon={uploadingIndex === editingIndex ? <CircularProgress size={14} /> : <Upload size={14} />}
-                      sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, py: 1 }}
-                    >
-                      {uploadingIndex === editingIndex ? 'A carregar…' : 'Alterar imagem'}
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="outlined"
                       onClick={openImageLibraryDialog}
                       sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, py: 1 }}
                     >

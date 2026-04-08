@@ -149,26 +149,10 @@ export default function CeoMessageEditor() {
             />
           </Box>
           <Box>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <Button
-              variant="outlined"
-              startIcon={uploading ? <CircularProgress size={16} /> : <Upload size={16} />}
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              sx={{ textTransform: 'none' }}
-            >
-              {uploading ? 'A carregar…' : 'Carregar Foto'}
-            </Button>
             <Button
               variant="outlined"
               onClick={() => setImageLibraryOpen(true)}
-              sx={{ textTransform: 'none', ml: 1 }}
+              sx={{ textTransform: 'none' }}
             >
               Biblioteca de imagens
             </Button>
