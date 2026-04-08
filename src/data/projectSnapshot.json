@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-04-08T10:19:18.865Z",
+  "generatedAt": "2026-04-08T11:23:47.035Z",
   "sourceRoot": "src",
-  "totalFiles": 58,
+  "totalFiles": 60,
   "sections": [
     {
       "id": "pages",
       "label": "Pages",
       "relativePath": "src/pages",
-      "totalFiles": 32,
+      "totalFiles": 33,
       "groups": [
         {
           "name": "Governance",
-          "fileCount": 22,
+          "fileCount": 23,
           "sampleFiles": [
             "Governance/AnnualReports.tsx",
             "Governance/Biography.tsx",
@@ -91,8 +91,17 @@
       "id": "components",
       "label": "Components",
       "relativePath": "src/components",
-      "totalFiles": 4,
+      "totalFiles": 5,
       "groups": [
+        {
+          "name": "Common",
+          "fileCount": 3,
+          "sampleFiles": [
+            "Common/DetailModal.tsx",
+            "Common/FilePreviewDialog.tsx",
+            "Common/Footer/index.tsx"
+          ]
+        },
         {
           "name": "Auth",
           "fileCount": 2,
@@ -100,20 +109,13 @@
             "Auth/index.ts",
             "Auth/ProtectedRoute.tsx"
           ]
-        },
-        {
-          "name": "Common",
-          "fileCount": 2,
-          "sampleFiles": [
-            "Common/DetailModal.tsx",
-            "Common/Footer/index.tsx"
-          ]
         }
       ],
       "samples": [
         "Auth/index.ts",
         "Auth/ProtectedRoute.tsx",
         "Common/DetailModal.tsx",
+        "Common/FilePreviewDialog.tsx",
         "Common/Footer/index.tsx"
       ]
     },
