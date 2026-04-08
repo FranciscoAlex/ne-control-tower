@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Upload, Save } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -230,10 +230,10 @@ export default function CeoMessageEditor() {
         </Typography>
       )}
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryOpen}
         onClose={() => setImageLibraryOpen(false)}
-        onSelect={(url) => setData(prev => ({ ...prev, photoUrl: url }))}
+        onSelect={(f) => setData(prev => ({ ...prev, photoUrl: f.url }))}
         title="Biblioteca de imagens do CEO"
       />
     </Box>

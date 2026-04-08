@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { ArrowDown, ArrowUp, Image, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 const DEFAULT_OVERLAY_START = '#0b3a82';
@@ -236,9 +236,9 @@ export default function SobreNosCarouselEditor() {
     setImageLibraryOpen(false);
   };
 
-  const handleImageLibrarySelect = (url: string) => {
+  const handleImageLibrarySelect = (f: { url: string }) => {
     if (editingIndex === null) return;
-    updateSlide(editingIndex, { imageUrl: url });
+    updateSlide(editingIndex, { imageUrl: f.url });
   };
 
   const handleSave = async () => {
@@ -876,7 +876,7 @@ export default function SobreNosCarouselEditor() {
         )}
       </Dialog>
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryOpen && editingSlide !== null}
         onClose={closeImageLibraryDialog}
         onSelect={handleImageLibrarySelect}

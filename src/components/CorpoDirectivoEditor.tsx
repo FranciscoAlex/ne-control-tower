@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -133,10 +133,10 @@ function MemberCard({ member, onSave, onDelete }: {
         </Box>
       </Collapse>
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryOpen}
         onClose={() => setImageLibraryOpen(false)}
-        onSelect={(url) => setData(p => ({ ...p, photoUrl: url }))}
+        onSelect={(f) => setData(p => ({ ...p, photoUrl: f.url }))}
         title="Biblioteca de fotos do corpo directivo"
       />
     </Paper>

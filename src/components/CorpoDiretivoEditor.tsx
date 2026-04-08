@@ -30,7 +30,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -574,12 +574,11 @@ export default function CorpoDiretivoEditor() {
         onOpenLibrary={() => setImageLibraryTarget(true)}
       />
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryTarget}
         onClose={() => setImageLibraryTarget(false)}
-        onSelect={(url) => {
+        onSelect={(f) => {
           setImageLibraryTarget(false);
-          // Can implement direct logic here or expect user to copy/paste
         }}
         title="Biblioteca de Imagens"
       />

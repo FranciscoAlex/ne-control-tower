@@ -104,7 +104,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'VISUAL_INDICATORS' | 'CEO_MESSAGE' | 'CAROUSEL' | 'SOBRE_NOS_CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'VISUAL_INDICATORS' | 'CEO_MESSAGE' | 'CAROUSEL' | 'SOBRE_NOS_CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO' | 'MARCO_HISTORICO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -136,6 +136,7 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   CAROUSEL:      '/comunicacao/carousel',
   SOBRE_NOS_CAROUSEL: '/sobre/carousel',
   PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
+  MARCO_HISTORICO: '/sobre/historia',
 };
 
 const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(
@@ -465,7 +466,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { type: 'header', text: 'Gestão Institucional' },
     { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
         { id: 'SOBRE', text: 'Quem Somos & Stats', icon: <Building2 size={18} /> },
-        { id: 'SOBRE_NOS_CAROUSEL', text: 'Carrossel Sobre Nós', icon: <Image size={18} /> },
+        { id: 'MARCO_HISTORICO', text: 'Nossa História', icon: <History size={18} /> },
         { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
         { id: 'APOIO', text: 'FAQ do Investidor', icon: <MessageSquare size={18} /> },
         { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
@@ -664,6 +665,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   CEO_MESSAGE: 'Mensagem do CEO',
                   CAROUSEL: 'Carrossel Principal',
                   SOBRE_NOS_CAROUSEL: 'Carrossel Sobre Nós',
+                  MARCO_HISTORICO: 'Nossa História',
                   ASSEMBLEIAS: 'Assembleias Gerais',
                   CALENDARIO: 'Calendário de Divulgações',
                   EVENTOS: 'Eventos Corporativos',
@@ -897,6 +899,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <CarouselEditor />
           ) : viewMode === 'SOBRE_NOS_CAROUSEL' ? (
             <SobreNosCarouselEditor />
+          ) : viewMode === 'MARCO_HISTORICO' ? (
+            <MarcoHistoricoEditor />
           ) : viewMode === 'PLANO_ESTRATEGICO' ? (
             <PlanoEstrategicoEditor />
           ) : viewMode === 'POLITICAS' ? (

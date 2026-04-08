@@ -146,67 +146,118 @@ function ColorField({
   );
 }
 
-function CardMiniPreview({ card }: { card: CardVisualDTO }) {
+/** Realistic full-size card preview matching the MetricCard in App.tsx */
+function CardFullPreview({ card }: { card: CardVisualDTO }) {
   return (
     <Box
       sx={{
-        borderRadius: 1.5,
-        p: 1.5,
-        background: card.bgColor,
-        backdropFilter: `blur(${card.backdropBlur})`,
-        border: `1.5px solid ${card.borderColor}`,
+        p: { xs: 1.5, md: 2.5 },
+        position: 'relative',
+        minHeight: 190,
         display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        minWidth: 220,
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        overflow: 'hidden',
+        bgcolor: card.bgColor,
+        backdropFilter: `blur(${card.backdropBlur})`,
+        borderRadius: 1.5,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+        border: `1px solid ${card.borderColor}`,
+        // Left accent pill identical to App.tsx ::before
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '50%',
+          left: '2px',
+          transform: 'translateY(-50%)',
+          width: '3px',
+          height: '60%',
+          borderRadius: '4px',
+          bgcolor: card.accentColor,
+          boxShadow: `0 0 8px ${card.accentColor}66`,
+        },
       }}
     >
-      {/* Accent pill */}
+      <Stack spacing={2}>
+        {/* Icon + Label row */}
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: '12px',
+              bgcolor: card.iconBgColor,
+              color: card.accentColor,
+              display: 'flex',
+            }}
+          >
+            {/* Placeholder icon square */}
+            <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: card.accentColor, opacity: 0.75 }} />
+          </Box>
+          <Typography
+            variant="body2"
+            sx={{ color: card.labelTextColor, fontWeight: 600, letterSpacing: '0.01em' }}
+          >
+            {card.label}
+          </Typography>
+        </Stack>
+
+        {/* Value + change row */}
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{ mb: 0.5, fontWeight: 700, fontSize: '2.125rem', color: card.valueTextColor }}
+          >
+            123.45
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box
+              sx={{
+                height: 20,
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                px: 1,
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: '10px',
+                bgcolor: 'rgba(16,185,129,0.10)',
+                color: '#059669',
+              }}
+            >
+              +2.30%
+            </Box>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              vs sessão anterior
+            </Typography>
+          </Stack>
+        </Box>
+      </Stack>
+
+      {/* Sparkline placeholder */}
       <Box
         sx={{
-          width: 5,
-          height: 44,
-          borderRadius: 8,
-          background: card.accentColor,
-          flexShrink: 0,
-        }}
-      />
-      {/* Icon circle */}
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          background: card.iconBgColor,
+          mt: 2,
+          height: 40,
+          borderRadius: 1,
+          bgcolor: `${card.accentColor}18`,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
+          alignItems: 'flex-end',
+          px: 1,
+          gap: '3px',
+          overflow: 'hidden',
         }}
       >
-        <Box
-          sx={{
-            width: 16,
-            height: 16,
-            borderRadius: '50%',
-            background: card.accentColor,
-            opacity: 0.7,
-          }}
-        />
-      </Box>
-      <Box flexGrow={1}>
-        <Typography
-          variant="caption"
-          sx={{ color: card.labelTextColor, fontSize: 9, display: 'block' }}
-        >
-          {card.label}
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{ color: card.valueTextColor, fontWeight: 700, fontSize: 13 }}
-        >
-          123.45
-        </Typography>
+        {[30, 45, 38, 55, 48, 60, 52, 65, 58, 72].map((h, i) => (
+          <Box
+            key={i}
+            sx={{
+              flex: 1,
+              height: `${h}%`,
+              borderRadius: '3px 3px 0 0',
+              bgcolor: card.accentColor,
+              opacity: 0.35 + i * 0.06,
+            }}
+          />
+        ))}
       </Box>
     </Box>
   );
@@ -223,76 +274,119 @@ function CardEditor({
     onChange({ ...card, [field]: val });
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
-      <Stack spacing={2}>
+    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
+      {/* Header */}
+      <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography variant="subtitle1" fontWeight={700} color="primary">
           {card.label}
         </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Pré-visualização em tempo real à esquerda · altere qualquer campo para ver o efeito imediato
+        </Typography>
+      </Box>
 
-        <CardMiniPreview card={card} />
-
-        <Divider />
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor de fundo (bgColor)"
-              value={card.bgColor}
-              onChange={set('bgColor')}
-            />
+      {/* Body: preview + controls side-by-side */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 0,
+        }}
+      >
+        {/* LEFT – live card preview */}
+        <Box
+          sx={{
+            flex: '0 0 auto',
+            width: { xs: '100%', md: 300 },
+            p: 3,
+            bgcolor: '#f1f5f9',
+            borderRight: { md: '1px solid' },
+            borderColor: { md: 'divider' },
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            alignItems: 'center',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing={1} sx={{ textTransform: 'uppercase', alignSelf: 'flex-start' }}>
+            Pré-visualização
+          </Typography>
+          <Box sx={{ width: '100%' }}>
+            <CardFullPreview card={card} />
           </Box>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor de destaque (accentColor)"
-              value={card.accentColor}
-              onChange={set('accentColor')}
-            />
-          </Box>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor de fundo do ícone"
-              value={card.iconBgColor}
-              onChange={set('iconBgColor')}
-            />
-          </Box>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor da borda"
-              value={card.borderColor}
-              onChange={set('borderColor')}
-            />
-          </Box>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor do valor (valueTextColor)"
-              value={card.valueTextColor}
-              onChange={set('valueTextColor')}
-            />
-          </Box>
-          <Box sx={{ flex: '1 1 240px' }}>
-            <ColorField
-              label="Cor do rótulo (labelTextColor)"
-              value={card.labelTextColor}
-              onChange={set('labelTextColor')}
-            />
-          </Box>
-          <Box sx={{ flex: '1 1 100%' }}>
-            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-              Desfoque do fundo (backdrop blur): {card.backdropBlur}
-            </Typography>
-            <Slider
-              value={blurPx(card.backdropBlur)}
-              min={0}
-              max={40}
-              step={1}
-              valueLabelDisplay="auto"
-              valueLabelFormat={(v) => `${v}px`}
-              onChange={(_, v) => set('backdropBlur')(`${v}px`)}
-              sx={{ color: card.accentColor }}
-            />
-          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+            Este é o aspecto real do cartão no portal de investidores.
+          </Typography>
         </Box>
-      </Stack>
+
+        {/* RIGHT – controls */}
+        <Box sx={{ flex: 1, p: 3 }}>
+          <Stack spacing={2.5}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor de fundo (bgColor)"
+                  value={card.bgColor}
+                  onChange={set('bgColor')}
+                />
+              </Box>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor de destaque (accentColor)"
+                  value={card.accentColor}
+                  onChange={set('accentColor')}
+                />
+              </Box>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor de fundo do ícone"
+                  value={card.iconBgColor}
+                  onChange={set('iconBgColor')}
+                />
+              </Box>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor da borda"
+                  value={card.borderColor}
+                  onChange={set('borderColor')}
+                />
+              </Box>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor do valor"
+                  value={card.valueTextColor}
+                  onChange={set('valueTextColor')}
+                />
+              </Box>
+              <Box sx={{ flex: '1 1 220px' }}>
+                <ColorField
+                  label="Cor do rótulo"
+                  value={card.labelTextColor}
+                  onChange={set('labelTextColor')}
+                />
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                Desfoque do fundo (backdrop blur): <strong>{card.backdropBlur}</strong>
+              </Typography>
+              <Slider
+                value={blurPx(card.backdropBlur)}
+                min={0}
+                max={40}
+                step={1}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(v) => `${v}px`}
+                onChange={(_, v) => set('backdropBlur')(`${v}px`)}
+                sx={{ color: card.accentColor }}
+              />
+            </Box>
+          </Stack>
+        </Box>
+      </Box>
     </Paper>
   );
 }

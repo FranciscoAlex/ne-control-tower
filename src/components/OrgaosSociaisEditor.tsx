@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -19,16 +19,14 @@ import {
   Typography,
   alpha,
   Tooltip,
-  FormControlLabel,
-  Switch,
 } from '@mui/material';
 import { 
   ChevronDown, 
   ChevronRight, 
-  Link,
   Plus, 
   Save, 
   Trash2, 
+  Upload, 
   UserPlus, 
   Edit2, 
   Image as ImageIcon,
@@ -36,7 +34,7 @@ import {
   X
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -45,9 +43,6 @@ type OrganMember = {
   role: string;
   photoUrl: string;
   bio?: string;
-  showBio?: boolean;
-  otherTitles?: string[];
-  hyperlink?: string;
 };
 
 type Organ = {
@@ -55,7 +50,6 @@ type Organ = {
   title: string;
   description: string;
   color: string;
-  textColor?: string;
   members: OrganMember[];
 };
 
@@ -130,32 +124,35 @@ function MemberEditDialog({
   onSave: (updated: OrganMember) => void;
   onOpenLibrary: () => void;
 }) {
-  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', showBio: true, otherTitles: [] });
-  const [newTitle, setNewTitle] = useState('');
+  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '' });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (member) {
-      setLocalMember({ ...member, showBio: member.showBio ?? true, otherTitles: member.otherTitles ?? [] });
+      setLocalMember(member);
     } else {
-      setLocalMember({ name: '', role: '', photoUrl: '', bio: '', showBio: true, otherTitles: [] });
+      setLocalMember({ name: '', role: '', photoUrl: '', bio: '' });
     }
   }, [member, open]);
 
-  const handleAddTitle = () => {
-    if (newTitle.trim()) {
-      setLocalMember(prev => ({
-        ...prev,
-        otherTitles: [...(prev.otherTitles || []), newTitle.trim()]
-      }));
-      setNewTitle('');
+  const uploadPhoto = async (file: File) => {
+    try {
+      setUploading(true);
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_BASE}/media-assets/images/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json() as { url?: string };
+      if (payload.url) {
+        setLocalMember(prev => ({ ...prev, photoUrl: payload.url || '' }));
+      }
+    } finally {
+      setUploading(false);
     }
-  };
-
-  const handleRemoveTitle = (index: number) => {
-    setLocalMember(prev => ({
-      ...prev,
-      otherTitles: (prev.otherTitles || []).filter((_, i) => i !== index)
-    }));
   };
 
   const currentInitials = localMember.name
@@ -204,17 +201,53 @@ function MemberEditDialog({
                 >
                   {currentInitials}
                 </Avatar>
+                <IconButton
+                  size="small"
+                  onClick={() => fileInputRef.current?.click()}
+                  sx={{
+                    position: 'absolute',
+                    bottom: -4,
+                    right: -4,
+                    bgcolor: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    '&:hover': { bgcolor: '#f8fafc' }
+                  }}
+                >
+                  <Upload size={14} />
+                </IconButton>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadPhoto(file);
+                    e.target.value = '';
+                  }}
+                />
               </Box>
               <Stack spacing={1} sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>FOTO DO PERFIL</Typography>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={() => onOpenLibrary()}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
-                >
-                  Biblioteca
-                </Button>
+                <Stack direction="row" spacing={1}>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                  >
+                    {uploading ? 'A carregar...' : 'Carregar'}
+                  </Button>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    onClick={() => onOpenLibrary()}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                  >
+                    Biblioteca
+                  </Button>
+                </Stack>
               </Stack>
             </Box>
 
@@ -236,48 +269,13 @@ function MemberEditDialog({
               InputProps={{ sx: { borderRadius: 2 } }}
             />
 
-            <Box>
-              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', mb: 1, display: 'block' }}>
-                OUTROS CARGOS / TÍTULOS
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="Adicionar outro cargo..."
-                  onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), handleAddTitle())}
-                  InputProps={{ sx: { borderRadius: 2 } }}
-                />
-                <Button variant="outlined" onClick={handleAddTitle} sx={{ borderRadius: 2, minWidth: 'fit-content' }}>
-                  <Plus size={20} />
-                </Button>
-              </Stack>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {(localMember.otherTitles || []).map((title, idx) => (
-                  <Chip
-                    key={idx}
-                    label={title}
-                    onDelete={() => handleRemoveTitle(idx)}
-                    size="small"
-                    sx={{ borderRadius: 1.5, fontWeight: 600 }}
-                  />
-                ))}
-              </Box>
-            </Box>
-
             <TextField
               fullWidth
-              label="Hiperligação do Membro (URL opcional)"
-              value={localMember.hyperlink || ''}
-              onChange={e => setLocalMember(prev => ({ ...prev, hyperlink: e.target.value || undefined }))}
+              label="URL Foto (opcional)"
+              value={localMember.photoUrl}
+              onChange={e => setLocalMember(prev => ({ ...prev, photoUrl: e.target.value }))}
               placeholder="https://..."
-              helperText="Se definida, um ícone de link aparecerá no cartão do membro para abrir em nova aba."
-              InputProps={{
-                sx: { borderRadius: 2 },
-                startAdornment: <Link size={15} color="#64748b" style={{ marginRight: 8 }} />,
-              }}
+              InputProps={{ sx: { borderRadius: 2 } }}
             />
 
             <TextField
@@ -289,24 +287,6 @@ function MemberEditDialog({
               multiline
               minRows={4}
               InputProps={{ sx: { borderRadius: 2 } }}
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={localMember.showBio || false}
-                  onChange={e => setLocalMember(prev => ({ ...prev, showBio: e.target.checked }))}
-                  color="primary"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>Activar Bio Card</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Se activo, o cartão biográfico será exibido na aplicação principal.
-                  </Typography>
-                </Box>
-              }
             />
           </Stack>
         </DialogContent>
@@ -502,7 +482,7 @@ function OrganCard({
                   InputProps={{ sx: { borderRadius: 2 } }}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   label="Cor Identificadora"
                   value={organ.color}
@@ -512,21 +492,6 @@ function OrganCard({
                     sx: { borderRadius: 2 },
                     startAdornment: (
                       <Box sx={{ width: 18, height: 18, borderRadius: '4px', bgcolor: organ.color, mr: 1, border: '1px solid rgba(0,0,0,0.05)' }} />
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <TextField
-                  label="Cor do Texto (Cards)"
-                  value={organ.textColor || '#1d1d1f'}
-                  onChange={e => onOrganChange(organIndex, { ...organ, textColor: e.target.value })}
-                  fullWidth
-                  placeholder="#1d1d1f"
-                  InputProps={{
-                    sx: { borderRadius: 2 },
-                    startAdornment: (
-                      <Box sx={{ width: 18, height: 18, borderRadius: '4px', bgcolor: organ.textColor || '#1d1d1f', mr: 1, border: '1px solid rgba(0,0,0,0.05)' }} />
                     ),
                   }}
                 />
@@ -542,7 +507,6 @@ function OrganCard({
                   InputProps={{ sx: { borderRadius: 2 } }}
                 />
               </Grid>
-
             </Grid>
           </Stack>
 
@@ -796,16 +760,11 @@ export default function OrgaosSociaisEditor() {
         onOpenLibrary={() => setImageLibraryTarget(true)}
       />
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryTarget}
         onClose={() => setImageLibraryTarget(false)}
-        onSelect={(url) => {
-          // Find the dialog input and update it - easiest via a custom event or ref
-          // Or just close library and we'll handle it inside MemberEditDialog if we moved it there
+        onSelect={(f) => {
           setImageLibraryTarget(false);
-          // Special hack: update the dialog's local state if open
-          // But since we want clean code, we'll actually move SharedImagePickerDialog inside MemberEditDialog in the next iteration or just use it here.
-          // For now, I'll update the component structure to be more robust.
         }}
         title="Biblioteca de Imagens"
       />

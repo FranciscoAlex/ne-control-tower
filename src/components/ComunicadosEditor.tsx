@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -426,11 +426,11 @@ function CommunicationCard({
             )}
           </Stack>
 
-          <SharedImagePickerDialog
+          <SharedFilePicker
             open={imageLibraryOpen}
             onClose={() => setImageLibraryOpen(false)}
-            onSelect={(url) => {
-              setData((p) => ({ ...p, imageUrl: url }));
+            onSelect={(f) => {
+              setData((p) => ({ ...p, imageUrl: f.url }));
               setMsg({ type: 'success', text: 'Imagem seleccionada da biblioteca.' });
             }}
             title="Biblioteca de imagens (Notícias)"
@@ -593,10 +593,10 @@ function NewCommunicationForm({
         </Stack>
       </Stack>
 
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={imageLibraryOpen}
         onClose={() => setImageLibraryOpen(false)}
-        onSelect={(url) => setData((p) => ({ ...p, imageUrl: url }))}
+        onSelect={(f) => setData((p) => ({ ...p, imageUrl: f.url }))}
         title="Biblioteca de imagens (Notícias)"
       />
     </Paper>

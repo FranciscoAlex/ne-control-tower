@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
-import SharedImagePickerDialog from './SharedImagePickerDialog';
+import SharedFilePicker from './SharedFilePicker';
 import { Check, ChevronDown, ChevronRight, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
@@ -137,10 +137,10 @@ function MilestoneCard({ item, onSave, onDelete }: {
                     </Stack>
                   </Stack>
                 </Box>
-                <SharedImagePickerDialog
+                <SharedFilePicker
                   open={pickerOpen}
                   onClose={() => setPickerOpen(false)}
-                  onSelect={url => { setData(p => ({ ...p, imageUrl: url })); setPickerOpen(false); }}
+                  onSelect={f => { setData(p => ({ ...p, imageUrl: f.url })); setPickerOpen(false); }}
                   title="Selecionar Imagem do Marco"
                 />
                 <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} disabled={!editing} size="small" fullWidth multiline minRows={2} />
@@ -217,10 +217,10 @@ function NewMilestoneForm({ onSubmit, onCancel }: { onSubmit: (m: Milestone) => 
           <Button onClick={onCancel} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none' }}>Cancelar</Button>
         </Stack>
       </Stack>
-      <SharedImagePickerDialog
+      <SharedFilePicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        onSelect={url => { setData(p => ({ ...p, imageUrl: url })); setPickerOpen(false); }}
+        onSelect={f => { setData(p => ({ ...p, imageUrl: f.url })); setPickerOpen(false); }}
         title="Selecionar Imagem do Marco"
       />
     </Paper>
