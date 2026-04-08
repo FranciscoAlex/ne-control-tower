@@ -1,18 +1,37 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
+  Grid,
+  IconButton,
   Paper,
   Slider,
   Stack,
   TextField,
   Tooltip,
   Typography,
+  alpha,
 } from '@mui/material';
-import { Save } from 'lucide-react';
+import { X } from 'lucide-react';
+import InsightsIcon from '@mui/icons-material/Insights';
+import EqualizerIcon from '@mui/icons-material/Equalizer';
+import {
+  AreaChart,
+  Area,
+  YAxis,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
+import { Pencil, Save } from 'lucide-react';
+
+const PRIMARY_MAIN = '#164993';
+const SECONDARY_MAIN = '#e63c2e';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -84,6 +103,31 @@ function blurPx(val: string): number {
   return parseFloat(val) || 0;
 }
 
+/** Extract alpha (0‒100) from rgba(r,g,b,a) or any color string */
+function bgAlpha(val: string): number {
+  const m = val.match(/rgba?\([^)]*,\s*([\d.]+)\s*\)/);
+  if (m) return Math.round(parseFloat(m[1]) * 100);
+  return 100; // solid color → 100%
+}
+
+/** Replace alpha in an rgba string, or convert hex/rgb to rgba with new alpha */
+function setAlpha(val: string, pct: number): string {
+  const a = (pct / 100).toFixed(2);
+  // Already rgba
+  const rgbaMatch = val.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbaMatch) return `rgba(${rgbaMatch[1]},${rgbaMatch[2]},${rgbaMatch[3]},${a})`;
+  // Hex #rrggbb or #rgb
+  const hexMatch = val.match(/^#([0-9a-f]{3,6})$/i);
+  if (hexMatch) {
+    const h = hexMatch[1].length === 3
+      ? hexMatch[1].split('').map(c => c + c).join('')
+      : hexMatch[1];
+    const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  return val;
+}
+
 function ColorField({
   label,
   value,
@@ -146,24 +190,140 @@ function ColorField({
   );
 }
 
-/** Realistic full-size card preview matching the MetricCard in App.tsx */
-function CardFullPreview({ card }: { card: CardVisualDTO }) {
+// ── Exact copies from src/App.tsx ────────────────────────────────────────────
+
+const CountUp = ({ value, duration = 1500 }: { value: string | number; duration?: number }) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const elementRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) { setIsVisible(true); observer.disconnect(); }
+    }, { threshold: 0.2 });
+    if (elementRef.current) observer.observe(elementRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    let startTimestamp: number | null = null;
+    let target = 0;
+    const valueString = value.toString();
+    const numMatch = valueString.match(/[\d.]+/);
+    if (numMatch) { target = parseFloat(numMatch[0]); }
+    else if (typeof value === 'number') { target = value; }
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setCount(easeProgress * target);
+      if (progress < 1) window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+  }, [isVisible, value, duration]);
+
+  const valueString = value.toString();
+  const numMatch = valueString.match(/[\d.]+/);
+  const suffix = numMatch ? valueString.split(numMatch[0])[1] || '' : '';
+  const prefix = numMatch ? valueString.split(numMatch[0])[0] || '' : '';
   return (
-    <Box
+    <span ref={elementRef}>
+      {prefix}
+      {count.toLocaleString(undefined, {
+        minimumFractionDigits: valueString.includes('.') ? 1 : 0,
+        maximumFractionDigits: 2,
+      })}
+      {suffix}
+    </span>
+  );
+};
+
+function Sparkline({ color = '#0a84ff', data, trend = 'up' }: { color?: string; data?: number[]; trend?: 'up' | 'down' }) {
+  const values = useMemo(() => {
+    if (data) return data;
+    const isUp = trend === 'up';
+    const start = isUp ? (30 + Math.random() * 20) : (70 + Math.random() * 20);
+    const points = [start];
+    for (let i = 1; i < 20; i++) {
+      const prev = points[i - 1];
+      const drift = isUp ? 0.4 : 0.6;
+      const change = (Math.random() - drift) * 16;
+      points.push(Math.max(10, prev + change));
+    }
+    return points;
+  }, [data, trend]);
+
+  const chartData = values.map((val, i) => ({ i, val }));
+  const gradientId = `grad-${color.replace('#', '')}-${Math.random()}`;
+
+  return (
+    <Box sx={{ width: '100%', height: '100%' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <YAxis domain={['dataMin', 'dataMax']} hide />
+          <Area
+            type="monotone"
+            dataKey="val"
+            stroke={color}
+            strokeWidth={2}
+            fillOpacity={1}
+            fill={`url(#${gradientId})`}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+            isAnimationActive={true}
+            animationDuration={1500}
+          />
+          <ReferenceLine
+            segment={[
+              { x: chartData.length - 1, y: chartData[chartData.length - 1].val },
+              { x: chartData.length - 1.01, y: chartData[chartData.length - 1].val },
+            ]}
+            stroke={color}
+            strokeWidth={0}
+            label={(props: any) => (
+              <circle cx={props.viewBox.x} cy={props.viewBox.y} r={3} fill={color} />
+            )}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </Box>
+  );
+}
+
+/** Exact MetricCard from src/App.tsx — only superUser forced false, icon fixed to InsightsIcon */
+function MetricCardPreview({ card }: { card: CardVisualDTO }) {
+  const label = card.label;
+  const value = '46.000 Kzs';
+  const change = '+0.80%';
+  const trimmedChange = change.trim();
+  const positive = trimmedChange.startsWith('+');
+  const negative = trimmedChange.startsWith('-');
+  const displayIcon = <InsightsIcon />;
+
+  return (
+    <Paper
+      elevation={0}
       sx={{
         p: { xs: 1.5, md: 2.5 },
         position: 'relative',
-        minHeight: 190,
+        height: '100%',
+        minHeight: { xs: 110, md: 190 },
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         overflow: 'hidden',
         bgcolor: card.bgColor,
         backdropFilter: `blur(${card.backdropBlur})`,
-        borderRadius: 1.5,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+        borderRadius: { xs: 1, md: 1.5 },
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.03)',
         border: `1px solid ${card.borderColor}`,
-        // Left accent pill identical to App.tsx ::before
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -179,224 +339,221 @@ function CardFullPreview({ card }: { card: CardVisualDTO }) {
       }}
     >
       <Stack spacing={2}>
-        {/* Icon + Label row */}
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Box
-            sx={{
-              p: 1,
-              borderRadius: '12px',
-              bgcolor: card.iconBgColor,
-              color: card.accentColor,
-              display: 'flex',
-            }}
-          >
-            {/* Placeholder icon square */}
-            <Box sx={{ width: 20, height: 20, borderRadius: 1, bgcolor: card.accentColor, opacity: 0.75 }} />
+          <Box sx={{
+            p: 1,
+            borderRadius: '12px',
+            bgcolor: alpha(card.accentColor ?? PRIMARY_MAIN, 0.1),
+            color: card.accentColor ?? 'primary.main',
+            display: 'flex',
+          }}>
+            {React.cloneElement(displayIcon as React.ReactElement, { fontSize: 'small' })}
           </Box>
-          <Typography
-            variant="body2"
-            sx={{ color: card.labelTextColor, fontWeight: 600, letterSpacing: '0.01em' }}
-          >
-            {card.label}
+          <Typography variant="body2" sx={{ color: card.labelTextColor ?? 'text.secondary', fontWeight: 600, letterSpacing: '0.01em' }}>
+            {label}
           </Typography>
         </Stack>
 
-        {/* Value + change row */}
         <Box>
-          <Typography
-            variant="h4"
-            sx={{ mb: 0.5, fontWeight: 700, fontSize: '2.125rem', color: card.valueTextColor }}
-          >
-            123.45
+          <Typography variant="h4" sx={{ mb: 0.5, fontWeight: 700, fontSize: { xs: '1.1rem', md: '2.125rem' }, color: card.valueTextColor ?? 'inherit' }}>
+            <CountUp value={value} duration={2500} />
           </Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Box
-              sx={{
-                height: 20,
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                px: 1,
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: '10px',
-                bgcolor: 'rgba(16,185,129,0.10)',
-                color: '#059669',
-              }}
-            >
-              +2.30%
+            <Box sx={{
+              height: 20, fontSize: '0.75rem', fontWeight: 700, px: 1,
+              display: 'flex', alignItems: 'center', borderRadius: '10px',
+              bgcolor: positive ? alpha('#10b981', 0.1) : negative ? alpha(SECONDARY_MAIN, 0.1) : alpha('#64748b', 0.1),
+              color: positive ? 'success.dark' : negative ? SECONDARY_MAIN : 'text.secondary',
+              border: 'none',
+            }}>
+              <CountUp value={change} duration={2000} />
             </Box>
-            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
               vs sessão anterior
             </Typography>
           </Stack>
         </Box>
       </Stack>
 
-      {/* Sparkline placeholder */}
-      <Box
-        sx={{
-          mt: 2,
-          height: 40,
-          borderRadius: 1,
-          bgcolor: `${card.accentColor}18`,
-          display: 'flex',
-          alignItems: 'flex-end',
-          px: 1,
-          gap: '3px',
-          overflow: 'hidden',
-        }}
-      >
-        {[30, 45, 38, 55, 48, 60, 52, 65, 58, 72].map((h, i) => (
-          <Box
-            key={i}
-            sx={{
-              flex: 1,
-              height: `${h}%`,
-              borderRadius: '3px 3px 0 0',
-              bgcolor: card.accentColor,
-              opacity: 0.35 + i * 0.06,
-            }}
-          />
-        ))}
+      <Box sx={{ mt: { xs: 0, md: 2 }, height: { xs: 0, md: 50 }, display: { xs: 'none', md: 'block' } }}>
+        <Sparkline color={card.accentColor ?? '#0a84ff'} trend="up" />
       </Box>
-    </Box>
+    </Paper>
   );
 }
 
-function CardEditor({
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Dialog with preview at top + controls below — saves only this card */
+function CardEditDialog({
   card,
-  onChange,
+  open,
+  onClose,
+  onSave,
 }: {
   card: CardVisualDTO;
-  onChange: (c: CardVisualDTO) => void;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updated: CardVisualDTO) => Promise<void>;
 }) {
+  const [draft, setDraft] = useState<CardVisualDTO>(card);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset draft whenever the dialog opens for a (possibly different) card
+  useEffect(() => { setDraft(card); setSuccess(false); setError(null); }, [open, card.key]);
+
   const set = (field: keyof CardVisualDTO) => (val: string) =>
-    onChange({ ...card, [field]: val });
+    setDraft((prev) => ({ ...prev, [field]: val }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSuccess(false);
+    setError(null);
+    try {
+      await onSave(draft);
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); onClose(); }, 1000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-      {/* Header */}
-      <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" fontWeight={700} color="primary">
-          {card.label}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Pré-visualização em tempo real à esquerda · altere qualquer campo para ver o efeito imediato
-        </Typography>
-      </Box>
-
-      {/* Body: preview + controls side-by-side */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: 0,
-        }}
-      >
-        {/* LEFT – live card preview */}
-        <Box
-          sx={{
-            flex: '0 0 auto',
-            width: { xs: '100%', md: 300 },
-            p: 3,
-            bgcolor: '#f1f5f9',
-            borderRight: { md: '1px solid' },
-            borderColor: { md: 'divider' },
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            alignItems: 'center',
-          }}
-        >
-          <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing={1} sx={{ textTransform: 'uppercase', alignSelf: 'flex-start' }}>
-            Pré-visualização
-          </Typography>
-          <Box sx={{ width: '100%' }}>
-            <CardFullPreview card={card} />
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-            Este é o aspecto real do cartão no portal de investidores.
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        <Box>
+          <Typography variant="h6" fontWeight={700}>{card.label}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            A pré-visualização actualiza em tempo real conforme edita.
           </Typography>
         </Box>
+        <IconButton onClick={onClose} size="small"><X size={18} /></IconButton>
+      </DialogTitle>
 
-        {/* RIGHT – controls */}
-        <Box sx={{ flex: 1, p: 3 }}>
+      <DialogContent dividers sx={{ p: 0 }}>
+        {/* ── PREVIEW STRIP ── */}
+        <Box
+          sx={{
+            position: 'relative',
+            p: 3,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+            // Rich background so backdrop-blur is actually visible
+            background: [
+              'linear-gradient(135deg, #0b3a82 0%, #164993 30%, #1e6abf 55%, #0b3a82 80%, #061e4a 100%)',
+            ].join(','),
+          }}
+        >
+          {/* Decorative blobs behind the card — give the blur something to blur */}
+          <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            <Box sx={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', bgcolor: '#f59e0b', opacity: 0.35, top: -40, left: '15%', filter: 'blur(2px)' }} />
+            <Box sx={{ position: 'absolute', width: 140, height: 140, borderRadius: '50%', bgcolor: '#10b981', opacity: 0.3, bottom: -30, right: '10%', filter: 'blur(2px)' }} />
+            <Box sx={{ position: 'absolute', width: 100, height: 100, borderRadius: '50%', bgcolor: '#e63c2e', opacity: 0.25, top: '20%', right: '30%', filter: 'blur(1px)' }} />
+            <Box sx={{ position: 'absolute', width: 80, height: 80, borderRadius: '50%', bgcolor: '#ffffff', opacity: 0.12, bottom: 10, left: '5%' }} />
+          </Box>
+
+          {/* Label */}
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', display: 'block', mb: 2, position: 'relative', zIndex: 1 }}>
+            Pré-visualização — o desfoque é visível sobre esta imagem
+          </Typography>
+
+          {/* Card floated over the background */}
+          <Box sx={{ maxWidth: 280, position: 'relative', zIndex: 1 }}>
+            <MetricCardPreview card={draft} />
+          </Box>
+        </Box>
+
+        {/* ── CONTROLS ── */}
+        <Box sx={{ p: 3 }}>
+          {success && <Alert severity="success" sx={{ mb: 2 }}>Guardado com sucesso.</Alert>}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
           <Stack spacing={2.5}>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor de fundo (bgColor)"
-                  value={card.bgColor}
-                  onChange={set('bgColor')}
-                />
+                <ColorField label="Cor de fundo" value={draft.bgColor} onChange={set('bgColor')} />
               </Box>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor de destaque (accentColor)"
-                  value={card.accentColor}
-                  onChange={set('accentColor')}
-                />
+                <ColorField label="Cor de destaque" value={draft.accentColor} onChange={set('accentColor')} />
               </Box>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor de fundo do ícone"
-                  value={card.iconBgColor}
-                  onChange={set('iconBgColor')}
-                />
+                <ColorField label="Cor de fundo do ícone" value={draft.iconBgColor} onChange={set('iconBgColor')} />
               </Box>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor da borda"
-                  value={card.borderColor}
-                  onChange={set('borderColor')}
-                />
+                <ColorField label="Cor da borda" value={draft.borderColor} onChange={set('borderColor')} />
               </Box>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor do valor"
-                  value={card.valueTextColor}
-                  onChange={set('valueTextColor')}
-                />
+                <ColorField label="Cor do valor" value={draft.valueTextColor} onChange={set('valueTextColor')} />
               </Box>
               <Box sx={{ flex: '1 1 220px' }}>
-                <ColorField
-                  label="Cor do rótulo"
-                  value={card.labelTextColor}
-                  onChange={set('labelTextColor')}
-                />
+                <ColorField label="Cor do rótulo" value={draft.labelTextColor} onChange={set('labelTextColor')} />
               </Box>
             </Box>
 
             <Divider />
 
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                Desfoque do fundo (backdrop blur): <strong>{card.backdropBlur}</strong>
-              </Typography>
-              <Slider
-                value={blurPx(card.backdropBlur)}
-                min={0}
-                max={40}
-                step={1}
-                valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}px`}
-                onChange={(_, v) => set('backdropBlur')(`${v}px`)}
-                sx={{ color: card.accentColor }}
-              />
-            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="flex-start">
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                  Desfoque (backdrop blur): <strong>{draft.backdropBlur}</strong>
+                </Typography>
+                <Slider
+                  value={blurPx(draft.backdropBlur)}
+                  min={0}
+                  max={40}
+                  step={1}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `${v}px`}
+                  onChange={(_, v) => set('backdropBlur')(`${v}px`)}
+                  sx={{ color: draft.accentColor }}
+                />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                  Transparência do fundo: <strong>{bgAlpha(draft.bgColor)}%</strong>
+                </Typography>
+                <Slider
+                  value={bgAlpha(draft.bgColor)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `${v}%`}
+                  onChange={(_, v) => set('bgColor')(setAlpha(draft.bgColor, v as number))}
+                  sx={{ color: draft.accentColor }}
+                />
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={onClose} variant="outlined" disabled={saving}>
+                Cancelar
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save size={14} />}
+              >
+                Guardar cartão
+              </Button>
+            </Stack>
           </Stack>
         </Box>
-      </Box>
-    </Paper>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export default function VisualIndicatorsEditor() {
   const [cards, setCards] = useState<CardVisualDTO[]>(CARD_DEFAULTS);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE}/card-visuals`)
@@ -408,35 +565,20 @@ export default function VisualIndicatorsEditor() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleCardChange = (idx: number, updated: CardVisualDTO) => {
-    setCards((prev) => prev.map((c, i) => (i === idx ? updated : c)));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSuccess(false);
-    setError(null);
-    try {
-      const token = localStorage.getItem('ct_token') || sessionStorage.getItem('ct_token') || '';
-      const res = await fetch(`${API_BASE}/card-visuals`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          updatedAt: new Date().toISOString(),
-          cards,
-        }),
-      });
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao guardar');
-    } finally {
-      setSaving(false);
-    }
+  /** Save a single card: optimistically update state, then PUT the full array */
+  const handleSaveCard = async (updated: CardVisualDTO) => {
+    const newCards = cards.map((c) => (c.key === updated.key ? updated : c));
+    const token = localStorage.getItem('ct_token') || sessionStorage.getItem('ct_token') || '';
+    const res = await fetch(`${API_BASE}/card-visuals`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ updatedAt: new Date().toISOString(), cards: newCards }),
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    setCards(newCards);
   };
 
   if (loading) {
@@ -449,45 +591,71 @@ export default function VisualIndicatorsEditor() {
 
   return (
     <Box>
+      {/* Header */}
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>
-            Indicadores Visuais
-          </Typography>
+          <Typography variant="h5" fontWeight={700}>Indicadores Visuais</Typography>
           <Typography variant="body2" color="text.secondary">
-            Personalize as cores e o desfoque dos 4 cartões de métricas na página inicial.
+            Clique num cartão para editar as suas cores e estilos.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
-          onClick={handleSave}
-          disabled={saving}
-        >
-          Guardar
-        </Button>
       </Stack>
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Configuração guardada com sucesso.
-        </Alert>
-      )}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      <Stack spacing={3}>
+      {/* Card grid */}
+      <Grid container spacing={2}>
         {cards.map((card, idx) => (
-          <CardEditor
-            key={card.key}
-            card={card}
-            onChange={(updated) => handleCardChange(idx, updated)}
-          />
+          <Grid key={card.key} size={{ xs: 12, sm: 6 }}>
+            <Box
+              onClick={() => setEditingIdx(idx)}
+              sx={{
+                cursor: 'pointer',
+                position: 'relative',
+                borderRadius: 1.5,
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.10)',
+                },
+                '&:hover .edit-badge': { opacity: 1 },
+              }}
+            >
+              <MetricCardPreview card={card} />
+              {/* Edit badge overlay */}
+              <Box
+                className="edit-badge"
+                sx={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  opacity: 0,
+                  transition: 'opacity 0.15s',
+                  bgcolor: 'rgba(255,255,255,0.9)',
+                  borderRadius: 2,
+                  px: 1,
+                  py: 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                }}
+              >
+                <Pencil size={12} />
+                <Typography variant="caption" fontWeight={700} fontSize={11}>Editar</Typography>
+              </Box>
+            </Box>
+          </Grid>
         ))}
-      </Stack>
+      </Grid>
+
+      {/* Edit dialog */}
+      {editingIdx !== null && (
+        <CardEditDialog
+          open={editingIdx !== null}
+          card={cards[editingIdx!]}
+          onClose={() => setEditingIdx(null)}
+          onSave={handleSaveCard}
+        />
+      )}
     </Box>
   );
 }

@@ -3,9 +3,13 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
-  Collapse,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
+  Grid,
   IconButton,
   Paper,
   Stack,
@@ -15,7 +19,7 @@ import {
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
 import SharedFilePicker from './SharedFilePicker';
-import { Check, ChevronDown, ChevronRight, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -42,196 +46,227 @@ function empty(): Milestone {
   };
 }
 
-function MilestoneCard({ item, onSave, onDelete }: {
-  item: Milestone;
-  onSave: (m: Milestone) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [data, setData] = useState<Milestone>(item);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  useEffect(() => { setData(item); }, [item]);
-
-  const handleSave = async () => {
-    try { setSaving(true); await onSave(data); setEditing(false); setMsg({ type: 'success', text: 'Guardado.' }); }
-    catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
-    finally { setSaving(false); }
-  };
-
+// ── Visual card shown in the grid ────────────────────────────────────────────
+function MilestoneGridCard({ item, onClick }: { item: Milestone; onClick: () => void }) {
   return (
-    <Paper sx={{ borderRadius: 4, border: '1px solid #e2e8f0', mb: 2, overflow: 'hidden' }}>
-      {/* Timeline stub on left */}
-      <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
-        <Box sx={{ width: 6, bgcolor: '#164993', borderRadius: '4px 0 0 4px', flexShrink: 0 }} />
-        <Box sx={{ flex: 1 }}>
-          <Box onClick={() => setOpen(v => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 900, color: '#164993', minWidth: 50 }}>{data.milestoneYear}</Typography>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{data.title || '(sem título)'}</Typography>
-                  {data.eventTitle && <Typography variant="caption" sx={{ color: '#64748b' }}>{data.eventTitle}</Typography>}
-                </Box>
-              </Box>
-            </Stack>
-            <Stack direction="row" spacing={1} onClick={e => e.stopPropagation()}>
-              {editing
-                ? <><Button size="small" variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Guardar</Button>
-                    <Button size="small" onClick={() => { setEditing(false); setData(item); }} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-                : <Button size="small" onClick={() => { setOpen(true); setEditing(true); }} startIcon={<Pencil size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Editar</Button>}
-              {item.id && (confirmDelete
-                ? <><Button size="small" color="error" variant="contained" onClick={() => onDelete(item.id!)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Confirmar</Button>
-                    <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-                : <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /></IconButton>
-              )}
-            </Stack>
+    <Paper
+      onClick={onClick}
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'transform 0.15s, box-shadow 0.15s',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 12px 32px rgba(0,0,0,0.10)' },
+        '&:hover .edit-badge': { opacity: 1 },
+      }}
+    >
+      {/* Image or year banner */}
+      {item.imageUrl ? (
+        <Box sx={{ height: 130, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+          <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <Box sx={{ position: 'absolute', top: 10, left: 10 }}>
+            <Chip label={item.milestoneYear} size="small" sx={{ fontWeight: 900, bgcolor: '#164993', color: '#fff', fontSize: '0.75rem' }} />
           </Box>
-          <Collapse in={open}>
-            <Box sx={{ px: 3, pb: 3 }}>
-              {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
-              <Stack spacing={2} sx={{ mt: 1 }}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} disabled={!editing} size="small" fullWidth />
-                  <TextField label="Título do Evento" value={data.eventTitle} onChange={e => setData(p => ({ ...p, eventTitle: e.target.value }))} disabled={!editing} size="small" fullWidth />
-                </Stack>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <TextField label="Ano" type="number" value={data.milestoneYear} onChange={e => setData(p => ({ ...p, milestoneYear: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 110 }} />
-                  <TextField label="Ordem de Exibição" type="number" value={data.displayOrder} onChange={e => setData(p => ({ ...p, displayOrder: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 130 }} />
-                </Stack>
-                {/* Image picker row */}
-                <Box>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Imagem do Card</Typography>
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                    {data.imageUrl && (
-                      <Box sx={{ width: 140, height: 84, borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
-                        <img src={data.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </Box>
-                    )}
-                    <Stack spacing={1} sx={{ flex: 1 }}>
-                      <TextField
-                        label="URL da Imagem"
-                        value={data.imageUrl}
-                        onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))}
-                        disabled={!editing}
-                        size="small"
-                        fullWidth
-                        placeholder="https://..."
-                      />
-                      {editing && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<Image size={14} />}
-                          onClick={() => setPickerOpen(true)}
-                          sx={{ borderRadius: 2, textTransform: 'none', alignSelf: 'flex-start' }}
-                        >
-                          Biblioteca de Imagens
-                        </Button>
-                      )}
-                    </Stack>
-                  </Stack>
-                </Box>
-                <SharedFilePicker
-                  open={pickerOpen}
-                  onClose={() => setPickerOpen(false)}
-                  onSelect={f => { setData(p => ({ ...p, imageUrl: f.url })); setPickerOpen(false); }}
-                  title="Selecionar Imagem do Marco"
-                />
-                <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} disabled={!editing} size="small" fullWidth multiline minRows={2} />
-                <Divider />
-                <Typography variant="overline" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1.5 }}>Conteúdo</Typography>
-                <RichTextEditor
-                  value={data.contentHtml}
-                  onChange={html => setData(p => ({ ...p, contentHtml: html }))}
-                  disabled={!editing}
-                  minHeight={160}
-                />
-              </Stack>
-            </Box>
-          </Collapse>
         </Box>
+      ) : (
+        <Box sx={{ height: 72, bgcolor: '#164993', display: 'flex', alignItems: 'center', px: 2.5, flexShrink: 0 }}>
+          <Typography variant="h4" sx={{ color: '#fff', fontWeight: 900, letterSpacing: -1 }}>{item.milestoneYear}</Typography>
+        </Box>
+      )}
+
+      {/* Body */}
+      <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.3 }}>{item.title || '(sem título)'}</Typography>
+        {item.eventTitle && (
+          <Typography variant="caption" sx={{ color: '#164993', fontWeight: 600 }}>{item.eventTitle}</Typography>
+        )}
+        {item.description && (
+          <Typography variant="caption" sx={{ color: '#64748b', mt: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {item.description}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Edit badge */}
+      <Box
+        className="edit-badge"
+        sx={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          opacity: 0,
+          transition: 'opacity 0.15s',
+          bgcolor: 'rgba(255,255,255,0.92)',
+          borderRadius: 2,
+          px: 1,
+          py: 0.4,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+        }}
+      >
+        <Pencil size={11} />
+        <Typography variant="caption" fontWeight={700} fontSize={11}>Editar</Typography>
       </Box>
     </Paper>
   );
 }
 
-function NewMilestoneForm({ onSubmit, onCancel }: { onSubmit: (m: Milestone) => Promise<void>; onCancel: () => void }) {
-  const [data, setData] = useState<Milestone>(empty());
+// ── Edit dialog ───────────────────────────────────────────────────────────────
+function MilestoneEditDialog({
+  item,
+  open,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  item: Milestone;
+  open: boolean;
+  onClose: () => void;
+  onSave: (m: Milestone) => Promise<void>;
+  onDelete?: (id: number) => Promise<void>;
+}) {
+  const [data, setData] = useState<Milestone>(item);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const submit = async () => {
-    if (!data.title.trim()) { setErr('Título obrigatório.'); return; }
-    try { setSaving(true); await onSubmit(data); } catch { setErr('Erro ao criar.'); } finally { setSaving(false); }
+
+  useEffect(() => { setData(item); setMsg(null); setConfirmDelete(false); }, [open, item.id]);
+
+  const handleSave = async () => {
+    if (!data.title.trim()) { setMsg({ type: 'error', text: 'Título obrigatório.' }); return; }
+    try {
+      setSaving(true);
+      await onSave(data);
+      setMsg({ type: 'success', text: 'Guardado com sucesso.' });
+      setTimeout(() => { setMsg(null); onClose(); }, 900);
+    } catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
+    finally { setSaving(false); }
   };
+
+  const handleDelete = async () => {
+    if (!item.id || !onDelete) return;
+    try {
+      setDeleting(true);
+      await onDelete(item.id);
+      onClose();
+    } catch { setMsg({ type: 'error', text: 'Erro ao eliminar.' }); }
+    finally { setDeleting(false); }
+  };
+
   return (
-    <Paper sx={{ p: 3, mb: 3, borderRadius: 4, border: '2px dashed #164993', bgcolor: '#f9fbff' }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#164993', mb: 2 }}>Novo Marco Histórico</Typography>
-      <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} size="small" fullWidth autoFocus />
-          <TextField label="Título do Evento" value={data.eventTitle} onChange={e => setData(p => ({ ...p, eventTitle: e.target.value }))} size="small" fullWidth />
-          <TextField label="Ano" type="number" value={data.milestoneYear} onChange={e => setData(p => ({ ...p, milestoneYear: Number(e.target.value) }))} size="small" sx={{ minWidth: 110 }} />
-          <TextField label="Ordem" type="number" value={data.displayOrder} onChange={e => setData(p => ({ ...p, displayOrder: Number(e.target.value) }))} size="small" sx={{ minWidth: 100 }} />
-        </Stack>
-        <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} size="small" fullWidth multiline minRows={2} />
-        {/* Image picker */}
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
         <Box>
-          <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Imagem do Card</Typography>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-            {data.imageUrl && (
-              <Box sx={{ width: 120, height: 72, borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
-                <img src={data.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </Box>
-            )}
-            <Stack spacing={1} sx={{ flex: 1 }}>
-              <TextField
-                label="URL da Imagem"
-                value={data.imageUrl}
-                onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))}
-                size="small"
-                fullWidth
-                placeholder="https://..."
-              />
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<Image size={14} />}
-                onClick={() => setPickerOpen(true)}
-                sx={{ borderRadius: 2, textTransform: 'none', alignSelf: 'flex-start' }}
-              >
-                Biblioteca de Imagens
-              </Button>
+          <Typography variant="h6" fontWeight={800}>{data.title || 'Marco Histórico'}</Typography>
+          <Typography variant="caption" color="text.secondary">Edite os campos e clique em Guardar.</Typography>
+        </Box>
+        <IconButton onClick={onClose} size="small"><X size={18} /></IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers sx={{ p: 0 }}>
+        {/* ── IMAGE PREVIEW AT TOP ── */}
+        {data.imageUrl && (
+          <Box sx={{ height: 180, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+            <img src={data.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.5))' }} />
+            <Box sx={{ position: 'absolute', bottom: 14, left: 18 }}>
+              <Chip label={data.milestoneYear} size="small" sx={{ fontWeight: 900, bgcolor: '#164993', color: '#fff' }} />
+              {data.title && (
+                <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 800, ml: 1, display: 'inline', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
+                  {data.title}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {/* ── FORM ── */}
+        <Box sx={{ p: 3 }}>
+          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
+
+          <Stack spacing={2.5}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} size="small" fullWidth />
+              <TextField label="Título do Evento" value={data.eventTitle} onChange={e => setData(p => ({ ...p, eventTitle: e.target.value }))} size="small" fullWidth />
+            </Stack>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField label="Ano" type="number" value={data.milestoneYear} onChange={e => setData(p => ({ ...p, milestoneYear: Number(e.target.value) }))} size="small" sx={{ minWidth: 110 }} />
+              <TextField label="Ordem de Exibição" type="number" value={data.displayOrder} onChange={e => setData(p => ({ ...p, displayOrder: Number(e.target.value) }))} size="small" sx={{ minWidth: 130 }} />
+            </Stack>
+            <TextField label="Descrição" value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))} size="small" fullWidth multiline minRows={2} />
+
+            {/* Image */}
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Imagem do Card</Typography>
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                {data.imageUrl && (
+                  <Box sx={{ width: 120, height: 72, borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                    <img src={data.imageUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </Box>
+                )}
+                <Stack spacing={1} sx={{ flex: 1 }}>
+                  <TextField label="URL da Imagem" value={data.imageUrl} onChange={e => setData(p => ({ ...p, imageUrl: e.target.value }))} size="small" fullWidth placeholder="https://..." />
+                  <Button size="small" variant="outlined" startIcon={<Image size={14} />} onClick={() => setPickerOpen(true)} sx={{ borderRadius: 2, textTransform: 'none', alignSelf: 'flex-start' }}>
+                    Biblioteca de Imagens
+                  </Button>
+                </Stack>
+              </Stack>
+              <SharedFilePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onSelect={f => { setData(p => ({ ...p, imageUrl: f.url })); setPickerOpen(false); }} title="Selecionar Imagem do Marco" />
+            </Box>
+
+            <Divider />
+            <Typography variant="overline" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: 1.5 }}>Conteúdo</Typography>
+            <RichTextEditor value={data.contentHtml} onChange={html => setData(p => ({ ...p, contentHtml: html }))} minHeight={160} />
+
+            <Divider />
+            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+              {item.id && onDelete ? (
+                confirmDelete ? (
+                  <Stack direction="row" spacing={1}>
+                    <Button size="small" color="error" variant="contained" onClick={handleDelete} disabled={deleting}
+                      startIcon={deleting ? <CircularProgress size={12} color="inherit" /> : <Trash2 size={13} />}>
+                      Confirmar eliminação
+                    </Button>
+                    <Button size="small" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+                  </Stack>
+                ) : (
+                  <Button size="small" color="error" variant="outlined" startIcon={<Trash2 size={13} />} onClick={() => setConfirmDelete(true)}>
+                    Eliminar
+                  </Button>
+                )
+              ) : <Box />}
+
+              <Stack direction="row" spacing={1}>
+                <Button onClick={onClose} variant="outlined" disabled={saving}>Cancelar</Button>
+                <Button variant="contained" onClick={handleSave} disabled={saving}
+                  startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Check size={14} />}>
+                  Guardar
+                </Button>
+              </Stack>
             </Stack>
           </Stack>
         </Box>
-        {err && <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert>}
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={submit} disabled={saving || !data.title.trim()} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Criar</Button>
-          <Button onClick={onCancel} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none' }}>Cancelar</Button>
-        </Stack>
-      </Stack>
-      <SharedFilePicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={f => { setData(p => ({ ...p, imageUrl: f.url })); setPickerOpen(false); }}
-        title="Selecionar Imagem do Marco"
-      />
-    </Paper>
+      </DialogContent>
+    </Dialog>
   );
 }
 
+// ── Main editor ───────────────────────────────────────────────────────────────
 export default function MarcoHistoricoEditor() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [editingItem, setEditingItem] = useState<Milestone | null>(null);
 
   const load = async () => {
     try { setLoading(true); const r = await fetch(`${API_BASE}/historical-milestones`); const d = await r.json(); setMilestones(Array.isArray(d) ? d : []); }
@@ -246,37 +281,71 @@ export default function MarcoHistoricoEditor() {
     const saved = await r.json();
     setMilestones(p => [...p, saved].sort((a, b) => a.milestoneYear - b.milestoneYear));
     setShowNew(false);
-    setMsg({ type: 'success', text: 'Criado.' });
+    setMsg({ type: 'success', text: 'Marco criado.' });
   };
+
   const handleSave = async (m: Milestone) => {
     const r = await fetch(`${API_BASE}/historical-milestones/${m.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(m) });
     if (!r.ok) throw new Error();
     const saved = await r.json();
     setMilestones(p => p.map(x => x.id === saved.id ? saved : x).sort((a, b) => a.milestoneYear - b.milestoneYear));
   };
+
   const handleDelete = async (id: number) => {
     await fetch(`${API_BASE}/historical-milestones/${id}`, { method: 'DELETE' });
     setMilestones(p => p.filter(x => x.id !== id));
-    setMsg({ type: 'success', text: 'Removido.' });
+    setMsg({ type: 'success', text: 'Marco eliminado.' });
   };
 
   return (
     <Box sx={{ pb: 6 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Timeline da história institucional da ENSA.</Typography>
-        </Box>
-        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Marco</Button>
+        <Typography variant="body2" sx={{ color: '#64748b' }}>Timeline da história institucional da ENSA. Clique num marco para editar.</Typography>
+        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(true)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>
+          Novo Marco
+        </Button>
       </Stack>
+
       <PageUrlBanner urls={{ label: 'História da ENSA', path: '/sobre-nos' }} />
       {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
-      {showNew && <NewMilestoneForm onSubmit={handleCreate} onCancel={() => setShowNew(false)} />}
-      {loading
-        ? <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress /></Stack>
-        : milestones.length === 0
-          ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem marcos históricos.</Typography></Paper>
-          : milestones.map(m => <MilestoneCard key={m.id} item={m} onSave={handleSave} onDelete={handleDelete} />)
-      }
+
+      {loading ? (
+        <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress /></Stack>
+      ) : milestones.length === 0 ? (
+        <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}>
+          <Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem marcos históricos. Clique em "Novo Marco" para adicionar.</Typography>
+        </Paper>
+      ) : (
+        <Grid container spacing={2}>
+          {milestones.map(m => (
+            <Grid key={m.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Box sx={{ position: 'relative', height: '100%' }}>
+                <MilestoneGridCard item={m} onClick={() => setEditingItem(m)} />
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Edit dialog */}
+      {editingItem && (
+        <MilestoneEditDialog
+          open={!!editingItem}
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSave={async (updated) => { await handleSave(updated); setEditingItem(null); }}
+          onDelete={async (id) => { await handleDelete(id); setEditingItem(null); }}
+        />
+      )}
+
+      {/* New dialog */}
+      <MilestoneEditDialog
+        item={empty()}
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        onSave={handleCreate}
+      />
     </Box>
   );
 }
+
