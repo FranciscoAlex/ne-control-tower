@@ -438,6 +438,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
         { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
         { id: 'APOIO', text: 'FAQ do Investidor', icon: <MessageSquare size={18} /> },
+        { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
       ]
     },
     { 
@@ -446,7 +447,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       icon: <ShieldCheck size={20} />, 
       sub: [
         { id: 'ORGANOGRAMA', text: 'Organograma Geral', icon: <Network size={18} /> },
-        { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
         { id: 'ORGAOS_SOCIAIS', text: 'Órgãos Sociais', icon: <Users size={18} /> },
         { id: 'EXECUTIVE', text: 'Corpo Directivo', icon: <Briefcase size={18} /> },
         { id: 'ACIONISTAS', text: 'Estrutura Accionista', icon: <Landmark size={18} /> },
