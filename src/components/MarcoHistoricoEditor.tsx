@@ -19,7 +19,7 @@ import {
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
 import SharedFilePicker from './SharedFilePicker';
-import { Check, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, GripVertical, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -47,22 +47,45 @@ function empty(): Milestone {
 }
 
 // ── Visual card shown in the grid ────────────────────────────────────────────
-function MilestoneGridCard({ item, onClick }: { item: Milestone; onClick: () => void }) {
+function MilestoneGridCard({
+  item,
+  onClick,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: {
+  item: Milestone;
+  onClick: () => void;
+  isDragOver?: boolean;
+  onDragStart?: React.DragEventHandler;
+  onDragOver?: React.DragEventHandler;
+  onDrop?: React.DragEventHandler;
+  onDragEnd?: React.DragEventHandler;
+}) {
   return (
     <Paper
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       onClick={onClick}
       elevation={0}
       sx={{
         borderRadius: 3,
-        border: '1px solid #e2e8f0',
+        border: isDragOver ? '2px dashed #164993' : '1px solid #e2e8f0',
         overflow: 'hidden',
-        cursor: 'pointer',
+        cursor: 'grab',
         transition: 'transform 0.15s, box-shadow 0.15s',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        opacity: isDragOver ? 0.7 : 1,
         '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 12px 32px rgba(0,0,0,0.10)' },
         '&:hover .edit-badge': { opacity: 1 },
+        '&:hover .drag-handle': { opacity: 1 },
       }}
     >
       {/* Image or year banner */}
@@ -90,6 +113,28 @@ function MilestoneGridCard({ item, onClick }: { item: Milestone; onClick: () => 
             {item.description}
           </Typography>
         )}
+      </Box>
+
+      {/* Drag handle */}
+      <Box
+        className="drag-handle"
+        sx={{
+          position: 'absolute',
+          top: 8,
+          left: 8,
+          opacity: 0,
+          transition: 'opacity 0.15s',
+          bgcolor: 'rgba(255,255,255,0.92)',
+          borderRadius: 1.5,
+          p: 0.4,
+          display: 'flex',
+          alignItems: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+          color: '#64748b',
+          cursor: 'grab',
+        }}
+      >
+        <GripVertical size={14} />
       </Box>
 
       {/* Edit badge */}
@@ -267,6 +312,33 @@ export default function MarcoHistoricoEditor() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [editingItem, setEditingItem] = useState<Milestone | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragJustFinished = { current: false };
+
+  const handleDrop = async (toIdx: number) => {
+    if (dragIdx === null || dragIdx === toIdx) { setDragIdx(null); setDragOverIdx(null); return; }
+    const reordered = [...milestones];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const withOrder = reordered.map((m, i) => ({ ...m, displayOrder: i }));
+    setMilestones(withOrder);
+    setDragIdx(null);
+    setDragOverIdx(null);
+    dragJustFinished.current = true;
+    try {
+      await Promise.all(withOrder.map(m =>
+        fetch(`${API_BASE}/historical-milestones/${m.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(m),
+        })
+      ));
+      setMsg({ type: 'success', text: 'Ordem guardada.' });
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao guardar ordem.' });
+    }
+  };
 
   const load = async () => {
     try { setLoading(true); const r = await fetch(`${API_BASE}/historical-milestones`); const d = await r.json(); setMilestones(Array.isArray(d) ? d : []); }
@@ -317,10 +389,21 @@ export default function MarcoHistoricoEditor() {
         </Paper>
       ) : (
         <Grid container spacing={2}>
-          {milestones.map(m => (
+          {milestones.map((m, idx) => (
             <Grid key={m.id} size={{ xs: 12, sm: 6, md: 4 }}>
               <Box sx={{ position: 'relative', height: '100%' }}>
-                <MilestoneGridCard item={m} onClick={() => setEditingItem(m)} />
+                <MilestoneGridCard
+                  item={m}
+                  isDragOver={dragOverIdx === idx}
+                  onClick={() => {
+                    if (dragJustFinished.current) { dragJustFinished.current = false; return; }
+                    setEditingItem(m);
+                  }}
+                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragIdx(idx); }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
+                  onDrop={e => { e.preventDefault(); handleDrop(idx); }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                />
               </Box>
             </Grid>
           ))}
