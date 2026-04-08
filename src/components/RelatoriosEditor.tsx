@@ -6,18 +6,29 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
+  LinearProgress,
   Paper,
+  Slider,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
-import { Check, ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
+import SharedFilePicker from './SharedFilePicker';
+import { BarChart2, Check, ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2, TrendingUp, Upload, X } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
+
+const KPI_COLORS = ['#164993', '#e63c2e', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4'];
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -69,190 +80,391 @@ function DocRow({ label, url }: { label: string; url: string }) {
   );
 }
 
-// ---- Financial Statement Card ----
+// ---- Financial Statement Card (grid card + edit dialog) ----
 function StatementCard({ item, onSave, onDelete }: {
   item: FinancialStatement;
   onSave: (i: FinancialStatement) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [data, setData] = useState<FinancialStatement>(item);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draft, setDraft] = useState<FinancialStatement>(item);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setData(item); }, [item]);
+  useEffect(() => { setDraft(item); }, [item]);
+
+  const handleOpen = () => { setDraft({ ...item }); setDialogOpen(true); };
+  const handleClose = () => { setDialogOpen(false); setMsg(null); setConfirmDelete(false); };
 
   const handleSave = async () => {
-    try { setSaving(true); await onSave(data); setEditing(false); setMsg({ type: 'success', text: 'Guardado.' }); }
-    catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
+    try {
+      setSaving(true);
+      await onSave(draft);
+      handleClose();
+    } catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
     finally { setSaving(false); }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !item.id) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-      setUploading(true);
-      const r = await fetch(`${API_BASE}/financial-statements/${item.id}/upload`, { method: 'POST', body: fd });
-      if (!r.ok) throw new Error();
-      const saved = await r.json();
-      setData(p => ({ ...p, documentUrl: saved.url }));
-      setMsg({ type: 'success', text: `"${file.name}" carregado.` });
-    } catch { setMsg({ type: 'error', text: 'Erro no upload.' }); }
-    finally { setUploading(false); e.target.value = ''; }
-  };
-
-  const typeColor = STATEMENT_TYPE_COLORS[data.statementType] || STATEMENT_TYPE_COLORS['Outro'];
+  const typeColor = STATEMENT_TYPE_COLORS[item.statementType] || STATEMENT_TYPE_COLORS['Outro'];
 
   return (
-    <Paper sx={{ borderRadius: 4, border: '1px solid #e2e8f0', borderLeft: `4px solid ${typeColor.border}`, mb: 2, overflow: 'hidden' }}>
-      <Box onClick={() => setOpen(v => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{data.title || '(sem título)'}</Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 0.3, flexWrap: 'wrap' }}>
-              <Chip label={String(data.year)} size="small" sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: '#eef4ff', color: '#164993' }} />
-              <Chip label={data.statementType} size="small" sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: typeColor.chipBg, color: typeColor.chipText }} />
-              <Chip label={data.language} size="small" sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f0fdf4', color: '#166534' }} />
-            </Stack>
-          </Box>
+    <>
+      {/* Visual grid card */}
+      <Paper
+        elevation={0}
+        onClick={handleOpen}
+        sx={{
+          p: 2.5,
+          border: '1px solid #e2e8f0',
+          borderLeft: `4px solid ${typeColor.border}`,
+          borderRadius: 3,
+          cursor: 'pointer',
+          position: 'relative',
+          bgcolor: '#fafafa',
+          transition: 'box-shadow 0.15s, background-color 0.15s',
+          '&:hover': { boxShadow: '0 2px 12px rgba(22,73,147,0.10)', bgcolor: 'white' },
+        }}
+      >
+        {/* action buttons */}
+        <Tooltip title="Editar" sx={{ position: 'absolute', top: 8, right: 8 }}>
+          <IconButton size="small" onClick={e => { e.stopPropagation(); handleOpen(); }} sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}>
+            <Pencil size={13} />
+          </IconButton>
+        </Tooltip>
+
+        {/* year badge */}
+        <Chip
+          label={String(item.year)}
+          size="small"
+          sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: '#eef4ff', color: '#164993', mb: 1 }}
+        />
+
+        {/* title */}
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', pr: 7, mb: 1, lineHeight: 1.35 }}>
+          {item.title || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sem título</span>}
+        </Typography>
+
+        {/* chips row */}
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Chip
+            label={item.statementType}
+            size="small"
+            sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: typeColor.chipBg, color: typeColor.chipText }}
+          />
+          <Chip
+            label={item.language}
+            size="small"
+            sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f0fdf4', color: '#166534' }}
+          />
         </Stack>
-        <Stack direction="row" spacing={1} onClick={e => e.stopPropagation()}>
-          {editing
-            ? <><Button size="small" variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Guardar</Button>
-                <Button size="small" onClick={() => { setEditing(false); setData(item); }} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <Button size="small" onClick={() => { setOpen(true); setEditing(true); }} startIcon={<Pencil size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Editar</Button>}
-          {item.id && (confirmDelete
-            ? <><Button size="small" color="error" variant="contained" onClick={() => onDelete(item.id!)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Confirmar</Button>
-                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /></IconButton>
-          )}
-        </Stack>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ px: 3, pb: 3 }}>
-          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} disabled={!editing} size="small" fullWidth />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Ano" type="number" value={data.year} onChange={e => setData(p => ({ ...p, year: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 110 }} />
-              <TextField select label="Tipo" value={data.statementType} onChange={e => setData(p => ({ ...p, statementType: e.target.value }))} disabled={!editing} size="small" sx={{ minWidth: 200 }} SelectProps={{ native: true }}>
+
+      </Paper>
+
+      {/* Edit Dialog */}
+      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FileText size={18} color={typeColor.border} />
+            <span>{item.id ? 'Editar Demonstração' : 'Nova Demonstração'}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, mt: 1, borderRadius: 2 }}>{msg.text}</Alert>}
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="Título *"
+              value={draft.title}
+              onChange={e => setDraft(p => ({ ...p, title: e.target.value }))}
+              size="small"
+              fullWidth
+              autoFocus
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Ano"
+                type="number"
+                value={draft.year}
+                onChange={e => setDraft(p => ({ ...p, year: Number(e.target.value) }))}
+                size="small"
+                sx={{ minWidth: 110 }}
+              />
+              <TextField
+                select
+                label="Tipo"
+                value={draft.statementType}
+                onChange={e => setDraft(p => ({ ...p, statementType: e.target.value }))}
+                size="small"
+                fullWidth
+                SelectProps={{ native: true }}
+              >
                 {STATEMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </TextField>
-              <TextField select label="Idioma" value={data.language} onChange={e => setData(p => ({ ...p, language: e.target.value }))} disabled={!editing} size="small" sx={{ minWidth: 100 }} SelectProps={{ native: true }}>
+              <TextField
+                select
+                label="Idioma"
+                value={draft.language}
+                onChange={e => setDraft(p => ({ ...p, language: e.target.value }))}
+                size="small"
+                sx={{ minWidth: 100 }}
+                SelectProps={{ native: true }}
+              >
                 {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
               </TextField>
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="flex-end">
-              <TextField label="URL do Documento" value={data.documentUrl} onChange={e => setData(p => ({ ...p, documentUrl: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="https://..." />
-              {editing && item.id && (
-                <><Button size="small" variant="outlined" startIcon={uploading ? <CircularProgress size={13} /> : <Upload size={13} />} onClick={() => fileRef.current?.click()} disabled={uploading} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Upload PDF</Button>
-                  <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleUpload} /></>
-              )}
-              {editing && !item.id && <Typography variant="caption" sx={{ color: '#f59e0b', whiteSpace: 'nowrap' }}>⚠ Guarde primeiro</Typography>}
-            </Stack>
-            {data.documentUrl && <DocRow label="Ver Documento" url={data.documentUrl} />}
+            {draft.documentUrl && (
+              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ bgcolor: '#f8fafc', borderRadius: 2, px: 1.5, py: 0.75 }}>
+                <FileText size={14} color="#64748b" />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#475569', flex: 1 }}>
+                  {draft.documentUrl.split('/').pop() || draft.documentUrl}
+                </Typography>
+                <Tooltip title="Remover documento">
+                  <IconButton size="small" onClick={() => setDraft(p => ({ ...p, documentUrl: '' }))} sx={{ p: 0.25 }}>
+                    <X size={13} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Upload size={13} />}
+              onClick={() => setPickerOpen(true)}
+              sx={{ borderRadius: 2, textTransform: 'none', borderStyle: 'dashed', color: '#64748b', borderColor: '#cbd5e1', alignSelf: 'flex-start' }}
+            >
+              Biblioteca
+            </Button>
+            <SharedFilePicker
+              open={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              onSelect={f => { setDraft(p => ({ ...p, documentUrl: f.url })); setPickerOpen(false); }}
+            />
           </Stack>
-        </Box>
-      </Collapse>
-    </Paper>
+
+          {confirmDelete && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+              Tem a certeza? Esta acção não pode ser desfeita.
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button size="small" color="error" variant="contained" onClick={() => { onDelete(item.id!); handleClose(); }} sx={{ textTransform: 'none' }}>
+                  Sim, remover
+                </Button>
+                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ textTransform: 'none' }}>
+                  Cancelar
+                </Button>
+              </Stack>
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          {item.id && !confirmDelete && (
+            <Button
+              color="error"
+              startIcon={<Trash2 size={14} />}
+              onClick={() => setConfirmDelete(true)}
+              sx={{ textTransform: 'none', mr: 'auto' }}
+            >
+              Remover
+            </Button>
+          )}
+          <Button onClick={handleClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving || !draft.title.trim()}
+            startIcon={saving ? <CircularProgress size={13} color="inherit" /> : <Check size={14} />}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
-// ---- Governance Report Card ----
+// ---- Governance Report Card (grid card + edit dialog) ----
 function GovReportCard({ item, onSave, onDelete }: {
   item: GovernanceReport;
   onSave: (i: GovernanceReport) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [data, setData] = useState<GovernanceReport>(item);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draft, setDraft] = useState<GovernanceReport>(item);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setData(item); }, [item]);
+  useEffect(() => { setDraft(item); }, [item]);
+
+  const handleOpen = () => { setDraft({ ...item }); setDialogOpen(true); };
+  const handleClose = () => { setDialogOpen(false); setMsg(null); setConfirmDelete(false); };
 
   const handleSave = async () => {
-    try { setSaving(true); await onSave(data); setEditing(false); setMsg({ type: 'success', text: 'Guardado.' }); }
-    catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
+    try {
+      setSaving(true);
+      await onSave(draft);
+      handleClose();
+    } catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
     finally { setSaving(false); }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !item.id) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-      setUploading(true);
-      const r = await fetch(`${API_BASE}/corporate-governance-reports/${item.id}/upload`, { method: 'POST', body: fd });
-      if (!r.ok) throw new Error();
-      const saved = await r.json();
-      setData(p => ({ ...p, documentUrl: saved.url }));
-      setMsg({ type: 'success', text: `"${file.name}" carregado.` });
-    } catch { setMsg({ type: 'error', text: 'Erro no upload.' }); }
-    finally { setUploading(false); e.target.value = ''; }
-  };
-
   return (
-    <Paper sx={{ borderRadius: 4, border: '1px solid #e2e8f0', borderLeft: `4px solid ${GOV_REPORT_COLOR.border}`, mb: 2, overflow: 'hidden' }}>
-      <Box onClick={() => setOpen(v => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{data.title || '(sem título)'}</Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
-              <Chip label={String(data.reportYear)} size="small" sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: GOV_REPORT_COLOR.chipBg, color: GOV_REPORT_COLOR.chipText }} />
-              <Chip label={data.language} size="small" sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f0fdf4', color: '#166534' }} />
-            </Stack>
-          </Box>
-        </Stack>
-        <Stack direction="row" spacing={1} onClick={e => e.stopPropagation()}>
-          {editing
-            ? <><Button size="small" variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Guardar</Button>
-                <Button size="small" onClick={() => { setEditing(false); setData(item); }} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <Button size="small" onClick={() => { setOpen(true); setEditing(true); }} startIcon={<Pencil size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Editar</Button>}
-          {item.id && (confirmDelete
-            ? <><Button size="small" color="error" variant="contained" onClick={() => onDelete(item.id!)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Confirmar</Button>
-                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /></IconButton>
-          )}
-        </Stack>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ px: 3, pb: 3 }}>
-          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} disabled={!editing} size="small" fullWidth />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Ano" type="number" value={data.reportYear} onChange={e => setData(p => ({ ...p, reportYear: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 110 }} />
-              <TextField select label="Idioma" value={data.language} onChange={e => setData(p => ({ ...p, language: e.target.value }))} disabled={!editing} size="small" sx={{ minWidth: 100 }} SelectProps={{ native: true }}>
+    <>
+      {/* Visual grid card */}
+      <Paper
+        elevation={0}
+        onClick={handleOpen}
+        sx={{
+          p: 2.5,
+          border: '1px solid #e2e8f0',
+          borderLeft: `4px solid ${GOV_REPORT_COLOR.border}`,
+          borderRadius: 3,
+          cursor: 'pointer',
+          position: 'relative',
+          bgcolor: '#fafafa',
+          transition: 'box-shadow 0.15s, background-color 0.15s',
+          '&:hover': { boxShadow: '0 2px 12px rgba(20,184,166,0.12)', bgcolor: 'white' },
+        }}
+      >
+        {/* action buttons */}
+        <Tooltip title="Editar" sx={{ position: 'absolute', top: 8, right: 8 }}>
+          <IconButton size="small" onClick={e => { e.stopPropagation(); handleOpen(); }} sx={{ bgcolor: '#f0fdfa', '&:hover': { bgcolor: '#ccfbf1' } }}>
+            <Pencil size={13} />
+          </IconButton>
+        </Tooltip>
+
+        {/* year badge */}
+        <Chip
+          label={String(item.reportYear)}
+          size="small"
+          sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: GOV_REPORT_COLOR.chipBg, color: GOV_REPORT_COLOR.chipText, mb: 1 }}
+        />
+
+        {/* title */}
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', pr: 7, mb: 1, lineHeight: 1.35 }}>
+          {item.title || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sem título</span>}
+        </Typography>
+
+        {/* language chip */}
+        <Chip
+          label={item.language}
+          size="small"
+          sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f0fdf4', color: '#166534' }}
+        />
+
+      </Paper>
+
+      {/* Edit Dialog */}
+      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FileText size={18} color={GOV_REPORT_COLOR.border} />
+            <span>Editar Relatório de Governação</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, mt: 1, borderRadius: 2 }}>{msg.text}</Alert>}
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="Título *"
+              value={draft.title}
+              onChange={e => setDraft(p => ({ ...p, title: e.target.value }))}
+              size="small"
+              fullWidth
+              autoFocus
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Ano"
+                type="number"
+                value={draft.reportYear}
+                onChange={e => setDraft(p => ({ ...p, reportYear: Number(e.target.value) }))}
+                size="small"
+                sx={{ minWidth: 110 }}
+              />
+              <TextField
+                select
+                label="Idioma"
+                value={draft.language}
+                onChange={e => setDraft(p => ({ ...p, language: e.target.value }))}
+                size="small"
+                sx={{ minWidth: 100 }}
+                SelectProps={{ native: true }}
+              >
                 {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
               </TextField>
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="flex-end">
-              <TextField label="URL do Documento" value={data.documentUrl} onChange={e => setData(p => ({ ...p, documentUrl: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="https://..." />
-              {editing && item.id && (
-                <><Button size="small" variant="outlined" startIcon={uploading ? <CircularProgress size={13} /> : <Upload size={13} />} onClick={() => fileRef.current?.click()} disabled={uploading} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, whiteSpace: 'nowrap' }}>Upload PDF</Button>
-                  <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleUpload} /></>
-              )}
-            </Stack>
-            {data.documentUrl && <DocRow label="Ver Relatório" url={data.documentUrl} />}
+            {draft.documentUrl && (
+              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ bgcolor: '#f8fafc', borderRadius: 2, px: 1.5, py: 0.75 }}>
+                <FileText size={14} color="#64748b" />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#475569', flex: 1 }}>
+                  {draft.documentUrl.split('/').pop() || draft.documentUrl}
+                </Typography>
+                <Tooltip title="Remover documento">
+                  <IconButton size="small" onClick={() => setDraft(p => ({ ...p, documentUrl: '' }))} sx={{ p: 0.25 }}>
+                    <X size={13} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Upload size={13} />}
+              onClick={() => setPickerOpen(true)}
+              sx={{ borderRadius: 2, textTransform: 'none', borderStyle: 'dashed', color: '#64748b', borderColor: '#cbd5e1', alignSelf: 'flex-start' }}
+            >
+              Biblioteca
+            </Button>
+            <SharedFilePicker
+              open={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              onSelect={f => { setDraft(p => ({ ...p, documentUrl: f.url })); setPickerOpen(false); }}
+            />
           </Stack>
-        </Box>
-      </Collapse>
-    </Paper>
+
+          {confirmDelete && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+              Tem a certeza? Esta acção não pode ser desfeita.
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button size="small" color="error" variant="contained" onClick={() => { onDelete(item.id!); handleClose(); }} sx={{ textTransform: 'none' }}>
+                  Sim, remover
+                </Button>
+                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ textTransform: 'none' }}>
+                  Cancelar
+                </Button>
+              </Stack>
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          {item.id && !confirmDelete && (
+            <Button
+              color="error"
+              startIcon={<Trash2 size={14} />}
+              onClick={() => setConfirmDelete(true)}
+              sx={{ textTransform: 'none', mr: 'auto' }}
+            >
+              Remover
+            </Button>
+          )}
+          <Button onClick={handleClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving || !draft.title.trim()}
+            startIcon={saving ? <CircularProgress size={13} color="inherit" /> : <Check size={14} />}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -356,6 +568,296 @@ const DESTAQUE_DEFAULTS: DestaqueData = {
   ],
 };
 
+// ---- KPI Cards Grid + Edit Dialog ----
+interface KpiCardsGridProps {
+  cards: StatCard[];
+  onUpdate: (idx: number, card: StatCard) => void;
+  onDelete: (idx: number) => void;
+  onAdd: () => void;
+  onReset: () => void;
+}
+
+function KpiCardsGrid({ cards, onUpdate, onDelete, onAdd, onReset }: KpiCardsGridProps) {
+  const [editCard, setEditCard] = useState<{ idx: number; draft: StatCard } | null>(null);
+
+  const handleOpen = (idx: number) => setEditCard({ idx, draft: { ...cards[idx] } });
+  const handleClose = () => setEditCard(null);
+  const handleSave = () => {
+    if (!editCard) return;
+    onUpdate(editCard.idx, editCard.draft);
+    setEditCard(null);
+  };
+  const patchDraft = (patch: Partial<StatCard>) =>
+    setEditCard(p => p ? { ...p, draft: { ...p.draft, ...patch } } : p);
+
+  return (
+    <>
+      <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2.5 }}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
+              Cartões de Métricas KPI
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#64748b' }}>
+              Cartões visíveis em <code>/relatorio-contas</code> abaixo do banner azul — (ex: Prémios Brutos, Resultado Líquido…). Clique no lápis para editar.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0, ml: 2 }}>
+            <Tooltip title="Apagar todos e voltar aos valores originais">
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                startIcon={<RefreshCw size={13} />}
+                onClick={onReset}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+              >
+                Repor
+              </Button>
+            </Tooltip>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+          {cards.map((card, idx) => (
+            <Paper
+              key={card.id || idx}
+              elevation={0}
+              sx={{
+                p: 2.5,
+                border: '1px solid #e2e8f0',
+                borderRadius: 3,
+                position: 'relative',
+                bgcolor: '#fafafa',
+                transition: 'box-shadow 0.15s',
+                '&:hover': { boxShadow: '0 2px 12px rgba(22,73,147,0.10)' },
+              }}
+            >
+              {/* action buttons */}
+              <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: 8, right: 8 }}>
+                <Tooltip title="Editar cartão">
+                  <IconButton size="small" onClick={() => handleOpen(idx)} sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}>
+                    <Pencil size={13} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Remover">
+                  <IconButton size="small" color="error" onClick={() => onDelete(idx)} sx={{ bgcolor: '#fff1f2', '&:hover': { bgcolor: '#ffe4e6' } }}>
+                    <Trash2 size={13} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+
+              {/* colour indicator bar */}
+              <Box sx={{ width: 32, height: 4, borderRadius: 2, bgcolor: KPI_COLORS[idx % KPI_COLORS.length], mb: 1.5 }} />
+
+              {/* label */}
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', display: 'block', mb: 0.5, pr: 6, lineHeight: 1.3 }}>
+                {card.label || <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>Sem título</span>}
+              </Typography>
+
+              {/* value */}
+              <Typography variant="h5" sx={{ fontWeight: 900, color: '#0f172a', mb: 0.5, lineHeight: 1.1 }}>
+                {card.value || <span style={{ fontSize: '1rem', fontWeight: 400, color: '#94a3b8', fontStyle: 'italic' }}>Sem valor</span>}
+              </Typography>
+
+              {/* trend chip */}
+              {card.trend && (
+                <Chip
+                  label={card.trend}
+                  size="small"
+                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#ecfdf5', color: '#059669', mb: 0.5 }}
+                />
+              )}
+
+              {/* progress bar preview */}
+              {card.showProgress && (
+                <Box sx={{ mt: 1 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(100, Math.max(0, card.progressValue))}
+                    sx={{ borderRadius: 2, height: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: KPI_COLORS[idx % KPI_COLORS.length] } }}
+                  />
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>{card.progressValue}%</Typography>
+                </Box>
+              )}
+
+              {/* note */}
+              {card.note && (
+                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 0.75, lineHeight: 1.4 }}>
+                  {card.note}
+                </Typography>
+              )}
+            </Paper>
+          ))}
+
+          {/* add-card tile */}
+          <Paper
+            elevation={0}
+            onClick={onAdd}
+            sx={{
+              p: 2.5,
+              border: '2px dashed #cbd5e1',
+              borderRadius: 3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              minHeight: 120,
+              transition: 'all 0.15s',
+              '&:hover': { borderColor: '#164993', bgcolor: '#f0f6ff' },
+            }}
+          >
+            <Stack alignItems="center" spacing={0.75}>
+              <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#e8effb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Plus size={18} color="#164993" />
+              </Box>
+              <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>
+                Adicionar Métrica
+              </Typography>
+            </Stack>
+          </Paper>
+        </Box>
+      </Paper>
+
+      {/* Edit Dialog */}
+      <Dialog
+        open={!!editCard}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <BarChart2 size={18} color="#164993" />
+            <span>Editar Cartão KPI</span>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent>
+          {editCard && (
+            <Stack spacing={2.5} sx={{ pt: 1.5 }}>
+              <TextField
+                label="Título da Métrica"
+                value={editCard.draft.label}
+                onChange={e => patchDraft({ label: e.target.value })}
+                size="small"
+                fullWidth
+                autoFocus
+                placeholder='ex: "Prémios Brutos Emitidos"'
+                helperText="Nome curto que aparece no topo do cartão."
+              />
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  label="Valor"
+                  value={editCard.draft.value}
+                  onChange={e => patchDraft({ value: e.target.value })}
+                  size="small"
+                  fullWidth
+                  placeholder='ex: "473.1B AOA"'
+                  helperText="Número ou texto em destaque."
+                />
+                <TextField
+                  label="Tendência"
+                  value={editCard.draft.trend}
+                  onChange={e => patchDraft({ trend: e.target.value })}
+                  size="small"
+                  fullWidth
+                  placeholder='ex: "+12.5% vs 2023"'
+                  helperText="Aparece como chip verde."
+                />
+              </Stack>
+
+              <TextField
+                label="Nota (texto secundário)"
+                value={editCard.draft.note}
+                onChange={e => patchDraft({ note: e.target.value })}
+                size="small"
+                fullWidth
+                placeholder='ex: "Relativo ao ano fiscal 2024."'
+              />
+
+              <Divider />
+
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>Barra de progresso</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Mostrar uma barra de progresso no cartão (ex: quota de mercado: 37%).
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={editCard.draft.showProgress}
+                  onChange={e => patchDraft({ showProgress: e.target.checked })}
+                  size="small"
+                />
+              </Stack>
+
+              {editCard.draft.showProgress && (
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', minWidth: 80 }}>
+                      Percentagem
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#164993', minWidth: 48, textAlign: 'right' }}>
+                      {editCard.draft.progressValue}%
+                    </Typography>
+                    <TextField
+                      type="number"
+                      value={editCard.draft.progressValue}
+                      onChange={e => patchDraft({ progressValue: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                      size="small"
+                      sx={{ width: 80 }}
+                      inputProps={{ min: 0, max: 100 }}
+                    />
+                  </Stack>
+                  <Slider
+                    value={editCard.draft.progressValue}
+                    onChange={(_e, val) => patchDraft({ progressValue: val as number })}
+                    min={0}
+                    max={100}
+                    step={1}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={v => `${v}%`}
+                    sx={{
+                      color: '#164993',
+                      '& .MuiSlider-thumb': { width: 20, height: 20 },
+                      '& .MuiSlider-track': { height: 8, borderRadius: 4 },
+                      '& .MuiSlider-rail': { height: 8, borderRadius: 4, bgcolor: '#e2e8f0' },
+                    }}
+                  />
+                  <LinearProgress
+                    variant="determinate"
+                    value={editCard.draft.progressValue}
+                    sx={{ borderRadius: 2, height: 6, mt: 0.5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#164993' } }}
+                  />
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="caption" sx={{ color: '#94a3b8' }}>0%</Typography>
+                    <Typography variant="caption" sx={{ color: '#94a3b8' }}>100%</Typography>
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={handleClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            startIcon={<Check size={14} />}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
 function DestaqueEditor() {
   const [data, setData] = useState<DestaqueData>(DESTAQUE_DEFAULTS);
   const [loading, setLoading] = useState(true);
@@ -433,7 +935,7 @@ function DestaqueEditor() {
             Cartão Destaque (banner azul)
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
-            Banner principal no topo da página <code>/ensa/relatorio-contas</code> (sem os cartões KPI).
+            Banner principal no topo da página <code>/ensa/relatorio-contas</code>, incluindo os cartões de métricas KPI (Prémios Brutos, Resultado Líquido, Capital Próprio, etc.).
           </Typography>
         </Box>
         <Button
@@ -506,136 +1008,30 @@ function DestaqueEditor() {
         </Stack>
       </Paper>
 
-      {/* Stat cards */}
-      <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Cartões de Métricas (abaixo do banner)
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<Plus size={13} />}
-            onClick={addCard}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-          >
-            Adicionar Métrica
-          </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="warning"
-              startIcon={<RefreshCw size={13} />}
-              onClick={async () => {
-                setData(p => ({ ...p, statCards: DESTAQUE_DEFAULTS.statCards }));
-                try {
-                  setSaving(true);
-                  const res = await fetch(`${API_BASE}/annual-report-destaque`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...data, statCards: DESTAQUE_DEFAULTS.statCards }),
-                  });
-                  if (!res.ok) throw new Error();
-                  setMsg({ type: 'success', text: 'Cartões repostos para os valores padrão.' });
-                } catch {
-                  setMsg({ type: 'info', text: 'Cartões repostos localmente (API offline).' });
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-            >
-              Repor Cartões Padrão
-            </Button>
-        </Stack>
-
-        {data.statCards.length === 0 && (
-          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-            Sem cartões de métricas. Clique em "Adicionar Métrica" para criar um.
-          </Typography>
-        )}
-
-        <Stack spacing={2}>
-          {data.statCards.map((card, idx) => (
-            <Paper
-              key={idx}
-              elevation={0}
-              sx={{ p: 2, border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: '#fafafa' }}
-            >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>
-                  Métrica #{idx + 1}
-                </Typography>
-                <IconButton size="small" color="error" onClick={() => deleteCard(idx)}>
-                  <Trash2 size={13} />
-                </IconButton>
-              </Stack>
-              <Stack spacing={1.5}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <TextField
-                    label="Etiqueta / Título da Métrica"
-                    value={card.label}
-                    onChange={e => updateCard(idx, { ...card, label: e.target.value })}
-                    size="small"
-                    fullWidth
-                    placeholder='ex: "ROE (Rentabilidade do Capital)"'
-                  />
-                  <TextField
-                    label="Valor"
-                    value={card.value}
-                    onChange={e => updateCard(idx, { ...card, value: e.target.value })}
-                    size="small"
-                    sx={{ maxWidth: 140 }}
-                    placeholder='ex: "13%"'
-                  />
-                  <TextField
-                    label="Tendência"
-                    value={card.trend}
-                    onChange={e => updateCard(idx, { ...card, trend: e.target.value })}
-                    size="small"
-                    sx={{ maxWidth: 160 }}
-                    placeholder='ex: "+4% vs 2023"'
-                  />
-                </Stack>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
-                  <TextField
-                    label="Nota (texto secundário)"
-                    value={card.note}
-                    onChange={e => updateCard(idx, { ...card, note: e.target.value })}
-                    size="small"
-                    fullWidth
-                    placeholder='ex: "Transparência e Governação de padrão mundial."'
-                  />
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
-                      Barra de progresso
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant={card.showProgress ? 'contained' : 'outlined'}
-                      onClick={() => updateCard(idx, { ...card, showProgress: !card.showProgress })}
-                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: 11 }}
-                    >
-                      {card.showProgress ? 'Ligada' : 'Desligada'}
-                    </Button>
-                    {card.showProgress && (
-                      <TextField
-                        label="Valor %"
-                        type="number"
-                        value={card.progressValue}
-                        onChange={e => updateCard(idx, { ...card, progressValue: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                        size="small"
-                        sx={{ width: 80 }}
-                        inputProps={{ min: 0, max: 100 }}
-                      />
-                    )}
-                  </Stack>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      </Paper>
+      {/* Stat cards — visual grid with edit popup */}
+      <KpiCardsGrid
+        cards={data.statCards}
+        onUpdate={updateCard}
+        onDelete={deleteCard}
+        onAdd={addCard}
+        onReset={async () => {
+          setData(p => ({ ...p, statCards: DESTAQUE_DEFAULTS.statCards }));
+          try {
+            setSaving(true);
+            const res = await fetch(`${API_BASE}/annual-report-destaque`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...data, statCards: DESTAQUE_DEFAULTS.statCards }),
+            });
+            if (!res.ok) throw new Error();
+            setMsg({ type: 'success', text: 'Cartões repostos para os valores padrão.' });
+          } catch {
+            setMsg({ type: 'info', text: 'Cartões repostos localmente (API offline).' });
+          } finally {
+            setSaving(false);
+          }
+        }}
+      />
     </Box>
   );
 }
@@ -728,7 +1124,7 @@ export default function RelatoriosEditor() {
       <Tabs value={tab} onChange={(_, v) => { setTab(v); setShowNew(false); }} sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 700, textTransform: 'none' } }}>
         <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Demonstrações Financeiras</span><Chip label={statements.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} /></Stack>} />
         <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Relatórios de Governação</span><Chip label={govReports.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} /></Stack>} />
-        <Tab label="🔵 Cartão Destaque" />
+        <Tab label="🔵 Destaque + Métricas KPI" />
       </Tabs>
 
       {tab === 2 ? (
@@ -746,10 +1142,14 @@ export default function RelatoriosEditor() {
             : tab === 0
               ? statements.length === 0
                 ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem documentos.</Typography></Paper>
-                : statements.map(s => <StatementCard key={s.id} item={s} onSave={saveStatement} onDelete={deleteStatement} />)
+                : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+                    {statements.map(s => <StatementCard key={s.id} item={s} onSave={saveStatement} onDelete={deleteStatement} />)}
+                  </Box>
               : govReports.length === 0
                 ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem relatórios de governação.</Typography></Paper>
-                : govReports.map(r => <GovReportCard key={r.id} item={r} onSave={saveGovReport} onDelete={deleteGovReport} />)
+                : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+                    {govReports.map(r => <GovReportCard key={r.id} item={r} onSave={saveGovReport} onDelete={deleteGovReport} />)}
+                  </Box>
           }
         </>
       )}

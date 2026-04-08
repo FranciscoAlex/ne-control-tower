@@ -25,6 +25,8 @@ import {
 import { 
   ChevronDown, 
   ChevronRight, 
+  ExternalLink,
+  Link,
   Plus, 
   Save, 
   Trash2, 
@@ -55,6 +57,7 @@ type Organ = {
   description: string;
   color: string;
   textColor?: string;
+  hyperlink?: string;
   members: OrganMember[];
 };
 
@@ -529,6 +532,21 @@ function OrganCard({
             size="small"
             sx={{ bgcolor: '#f1f5f9', color: '#64748b', fontWeight: 700, fontSize: 11 }}
           />
+          {organ.hyperlink && (
+            <Tooltip title={`Abrir: ${organ.hyperlink}`}>
+              <IconButton
+                size="small"
+                component="a"
+                href={organ.hyperlink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                sx={{ color: '#3b82f6', '&:hover': { bgcolor: '#eff6ff' } }}
+              >
+                <ExternalLink size={15} />
+              </IconButton>
+            </Tooltip>
+          )}
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
           <IconButton
             size="small"
@@ -592,6 +610,20 @@ function OrganCard({
                   multiline
                   minRows={2}
                   InputProps={{ sx: { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Hiperligação (URL opcional)"
+                  value={organ.hyperlink || ''}
+                  onChange={e => onOrganChange(organIndex, { ...organ, hyperlink: e.target.value || undefined })}
+                  fullWidth
+                  placeholder="https://..."
+                  helperText={organ.hyperlink ? 'O ícone de link será visível no cartão — clique para abrir em nova aba.' : 'Se definida, o cartão mostrará um ícone de link clicável.'}
+                  InputProps={{
+                    sx: { borderRadius: 2 },
+                    startAdornment: <Link size={15} color="#64748b" style={{ marginRight: 8 }} />,
+                  }}
                 />
               </Grid>
             </Grid>

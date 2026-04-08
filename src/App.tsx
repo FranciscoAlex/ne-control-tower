@@ -87,6 +87,8 @@ import PlanoEstrategicoEditor from './components/PlanoEstrategicoEditor';
 import CorpoDiretivoEditor from './components/CorpoDiretivoEditor';
 import ParticipadasEditor from './components/ParticipadasEditor';
 import MediaGalleryEditor from './components/MediaGalleryEditor';
+import PoliticasEditor from './components/PoliticasEditor';
+import LegislacaoEditor from './components/LegislacaoEditor';
 import logoEnsaSrc from './assets/logo_ensa.png';
 
 // --- Types ---
@@ -100,7 +102,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'CEO_MESSAGE' | 'CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -125,6 +127,8 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   EVENTOS:       '/eventos',
   MERCADO:       '/financas/mercado',
   MEDIA_GALLERY: '/biblioteca/galeria',
+  POLITICAS:     '/governanca/politicas',
+  LEGISLACAO:    '/governanca/legislacao',
   CEO_MESSAGE:   '/comunicacao/ceo',
   CAROUSEL:      '/comunicacao/carousel',
   PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
@@ -144,6 +148,10 @@ type WhoWeAreContentDTO = {
   title: string;
   mainText: string;
   updatedAt: string;
+  statsAnosHistoria: string;
+  statsMarketShare: string;
+  statsColaboradores: string;
+  statsTopSeguradoras: string;
 };
 
 const snapshot = projectSnapshot as any;
@@ -355,6 +363,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const [whoWeAreLoading, setWhoWeAreLoading] = useState(false);
   const [whoWeAreSaving, setWhoWeAreSaving] = useState(false);
   const [whoWeAreMessage, setWhoWeAreMessage] = useState('');
+  const [statsAnosHistoria, setStatsAnosHistoria] = useState('46');
+  const [statsMarketShare, setStatsMarketShare] = useState('27%');
+  const [statsColaboradores, setStatsColaboradores] = useState('1,200+');
+  const [statsTopSeguradoras, setStatsTopSeguradoras] = useState('#50');
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
     'SOBRE': true,
     'GOVERNANCA': true,
@@ -386,6 +398,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       const data: WhoWeAreContentDTO = await res.json();
       setWhoWeAreMainText(data.mainText || '');
       setWhoWeAreUpdatedAt(data.updatedAt || '');
+      setStatsAnosHistoria(data.statsAnosHistoria || '46');
+      setStatsMarketShare(data.statsMarketShare || '27%');
+      setStatsColaboradores(data.statsColaboradores || '1,200+');
+      setStatsTopSeguradoras(data.statsTopSeguradoras || '#50');
     } catch {
       setWhoWeAreMessage('Erro ao carregar conteúdo do backend.');
     } finally {
@@ -402,6 +418,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         title: 'Sobre a ENSA',
         mainText: whoWeAreMainText,
         updatedAt: whoWeAreUpdatedAt || new Date().toISOString().split('T')[0],
+        statsAnosHistoria,
+        statsMarketShare,
+        statsColaboradores,
+        statsTopSeguradoras,
       };
       const res = await fetch(`${API_BASE}/about/who-we-are`, {
         method: 'PUT',
@@ -412,6 +432,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       const saved: WhoWeAreContentDTO = await res.json();
       setWhoWeAreMainText(saved.mainText || '');
       setWhoWeAreUpdatedAt(saved.updatedAt || '');
+      setStatsAnosHistoria(saved.statsAnosHistoria || '46');
+      setStatsMarketShare(saved.statsMarketShare || '27%');
+      setStatsColaboradores(saved.statsColaboradores || '1,200+');
+      setStatsTopSeguradoras(saved.statsTopSeguradoras || '#50');
       setWhoWeAreMessage('Conteúdo guardado com sucesso no backend.');
     } catch {
       setWhoWeAreMessage('Erro ao guardar conteúdo no backend.');
@@ -436,6 +460,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     
     { type: 'header', text: 'Gestão Institucional' },
     { id: 'SOBRE', text: 'Sobre a ENSA', icon: <Building2 size={20} />, sub: [
+        { id: 'SOBRE', text: 'Quem Somos & Stats', icon: <Building2 size={18} /> },
         { id: 'PLANO_ESTRATEGICO', text: 'Plano Estratégico', icon: <FolderOpen size={18} /> },
         { id: 'APOIO', text: 'FAQ do Investidor', icon: <MessageSquare size={18} /> },
         { id: 'ESTATUTOS', text: 'Estatutos e Ética', icon: <Scale size={18} /> },
@@ -451,6 +476,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         { id: 'EXECUTIVE', text: 'Corpo Directivo', icon: <Briefcase size={18} /> },
         { id: 'ACIONISTAS', text: 'Estrutura Accionista', icon: <Landmark size={18} /> },
         { id: 'PARTICIPADAS', text: 'Empresas Participadas', icon: <Building size={18} /> },
+        { id: 'POLITICAS', text: 'Políticas Institucionais', icon: <ShieldCheck size={18} /> },
+        { id: 'LEGISLACAO', text: 'Legislação', icon: <Scale size={18} /> },
       ]
     },
     
@@ -633,6 +660,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   CALENDARIO: 'Calendário de Divulgações',
                   EVENTOS: 'Eventos Corporativos',
                   MEDIA_GALLERY: 'Galeria de Ficheiros',
+                  POLITICAS: 'Políticas Institucionais',
+                  LEGISLACAO: 'Legislação',
                   APOIO: 'Apoio ao Investidor',
                   GOVERNANCA: 'Governação',
                   FINANCAS: 'Relatórios Financeiros',
@@ -747,6 +776,47 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   onChange={(e) => setWhoWeAreMainText(e.target.value)}
                   disabled={whoWeAreLoading || whoWeAreSaving}
                 />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', pt: 1 }}>
+                  Cards de Estatísticas
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    fullWidth
+                    label="Anos de História"
+                    value={statsAnosHistoria}
+                    onChange={(e) => setStatsAnosHistoria(e.target.value)}
+                    disabled={whoWeAreLoading || whoWeAreSaving}
+                    size="small"
+                    placeholder="ex: 46"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Market Share"
+                    value={statsMarketShare}
+                    onChange={(e) => setStatsMarketShare(e.target.value)}
+                    disabled={whoWeAreLoading || whoWeAreSaving}
+                    size="small"
+                    placeholder="ex: 27%"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Colaboradores"
+                    value={statsColaboradores}
+                    onChange={(e) => setStatsColaboradores(e.target.value)}
+                    disabled={whoWeAreLoading || whoWeAreSaving}
+                    size="small"
+                    placeholder="ex: 1,200+"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Top Seguradoras Africanas"
+                    value={statsTopSeguradoras}
+                    onChange={(e) => setStatsTopSeguradoras(e.target.value)}
+                    disabled={whoWeAreLoading || whoWeAreSaving}
+                    size="small"
+                    placeholder="ex: #50"
+                  />
+                </Stack>
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
                   <Button
                     variant="contained"
@@ -817,6 +887,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <CarouselEditor />
           ) : viewMode === 'PLANO_ESTRATEGICO' ? (
             <PlanoEstrategicoEditor />
+          ) : viewMode === 'POLITICAS' ? (
+            <PoliticasEditor />
+          ) : viewMode === 'LEGISLACAO' ? (
+            <LegislacaoEditor />
           ) : (
             <Paper sx={{ p: 10, textAlign: 'center', borderRadius: 5, border: '1px solid #f1f5f9', bgcolor: 'white' }}>
               <Box sx={{ mb: 3, opacity: 0.2 }}>

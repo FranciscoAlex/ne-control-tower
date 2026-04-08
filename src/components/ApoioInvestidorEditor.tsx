@@ -5,16 +5,21 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   IconButton,
   Paper,
   Stack,
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { Check, ChevronDown, ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import { Check, Edit2, Plus, Trash2, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
@@ -113,33 +118,71 @@ function ContactsEditor() {
   );
 }
 
-// ---- FAQ item row card ----
-function FaqCard({ item, idx, onChange, onDelete }: {
-  item: FaqItem;
-  idx: number;
-  onChange: (updated: FaqItem) => void;
-  onDelete: () => void;
+// ---- FAQ edit dialog ----
+function FaqDialog({
+  item, open, onClose, onSave, onDelete,
+}: {
+  item: FaqItem; open: boolean; onClose: () => void;
+  onSave: (updated: FaqItem) => void; onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<FaqItem>(item);
+  useEffect(() => { setDraft(item); }, [item, open]);
 
   return (
-    <Paper sx={{ borderRadius: 3, border: '1px solid #e2e8f0', borderLeft: '4px solid #3b82f6', mb: 2, overflow: 'hidden' }}>
-      <Box onClick={() => setOpen(v => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</IconButton>
-          <Chip label={`#${idx + 1}`} size="small" sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: '#eff6ff', color: '#1d4ed8' }} />
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>{item.question || '(sem pergunta)'}</Typography>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+          {draft.question ? draft.question.slice(0, 60) + (draft.question.length > 60 ? '…' : '') : 'Nova Pergunta'}
+        </Typography>
+        <IconButton size="small" onClick={onClose}><X size={18} /></IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField
+            label="Pergunta" value={draft.question} size="small" fullWidth
+            onChange={e => setDraft(d => ({ ...d, question: e.target.value }))}
+            placeholder='ex: "Como posso adquirir acções da ENSA?"'
+          />
+          <TextField
+            label="Resposta" value={draft.answer} size="small" fullWidth multiline minRows={4}
+            onChange={e => setDraft(d => ({ ...d, answer: e.target.value }))}
+            placeholder="Resposta detalhada..."
+          />
         </Stack>
-        <IconButton size="small" color="error" onClick={e => { e.stopPropagation(); onDelete(); }}><Trash2 size={14} /></IconButton>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ px: 3, pb: 3 }}>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Pergunta" value={item.question} onChange={e => onChange({ ...item, question: e.target.value })} size="small" fullWidth placeholder='ex: "Como posso adquirir acções da ENSA?"' />
-            <TextField label="Resposta" value={item.answer} onChange={e => onChange({ ...item, answer: e.target.value })} size="small" fullWidth multiline minRows={3} placeholder="Resposta detalhada..." />
-          </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+        <Button size="small" color="error" startIcon={<Trash2 size={14} />} onClick={() => { onDelete(); onClose(); }} sx={{ textTransform: 'none' }}>
+          Eliminar
+        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button variant="contained" onClick={() => { onSave(draft); onClose(); }} sx={{ textTransform: 'none', fontWeight: 700 }}>Guardar</Button>
+        </Stack>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ---- FAQ small card ----
+function FaqSmallCard({ item, idx, onEdit }: { item: FaqItem; idx: number; onEdit: () => void }) {
+  return (
+    <Paper
+      onClick={onEdit}
+      sx={{
+        p: 2, borderRadius: 3, border: '1px solid #e2e8f0', cursor: 'pointer',
+        transition: 'all .15s',
+        '&:hover': { borderColor: '#93c5fd', boxShadow: '0 4px 12px rgba(59,130,246,0.12)', transform: 'translateY(-2px)' },
+      }}
+    >
+      <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+        <Chip label={idx + 1} size="small" sx={{ minWidth: 28, bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 800, borderRadius: 1, flexShrink: 0 }} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            {item.question || '(sem pergunta)'}
+          </Typography>
         </Box>
-      </Collapse>
+        <Edit2 size={14} color="#94a3b8" />
+      </Stack>
     </Paper>
   );
 }
@@ -201,10 +244,13 @@ function FaqEditor() {
     }
   };
 
-  const addItem = () => setFaq(p => ({
-    ...p,
-    items: [...p.items, { id: `faq-${Date.now()}`, sortOrder: p.items.length + 1, question: '', answer: '' }],
-  }));
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+
+  const addItem = () => {
+    const next = faq.items.length;
+    setFaq(p => ({ ...p, items: [...p.items, { id: `faq-${Date.now()}`, sortOrder: next + 1, question: '', answer: '' }] }));
+    setTimeout(() => setEditIdx(next), 0);
+  };
 
   const updateItem = (idx: number, updated: FaqItem) =>
     setFaq(p => ({ ...p, items: p.items.map((it, i) => (i === idx ? updated : it)) }));
@@ -238,9 +284,21 @@ function FaqEditor() {
           <Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem perguntas. Clique em "Nova Pergunta" para adicionar.</Typography>
         </Paper>
       ) : (
-        faq.items.map((item, idx) => (
-          <FaqCard key={item.id} item={item} idx={idx} onChange={updated => updateItem(idx, updated)} onDelete={() => deleteItem(idx)} />
-        ))
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
+          {faq.items.map((item, idx) => (
+            <FaqSmallCard key={item.id} item={item} idx={idx} onEdit={() => setEditIdx(idx)} />
+          ))}
+        </Box>
+      )}
+
+      {editIdx !== null && faq.items[editIdx] && (
+        <FaqDialog
+          item={faq.items[editIdx]}
+          open={true}
+          onClose={() => setEditIdx(null)}
+          onSave={updated => updateItem(editIdx, updated)}
+          onDelete={() => { deleteItem(editIdx); setEditIdx(null); }}
+        />
       )}
     </Box>
   );

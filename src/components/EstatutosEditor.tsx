@@ -13,14 +13,13 @@ import {
   IconButton,
   Paper,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { ChevronDown, ChevronRight, FileText, Image as ImageIcon, Link2, Plus, Save, Trash2, Upload } from 'lucide-react';
+import { Edit2, FileText, Link2, Paperclip, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
+import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -61,132 +60,189 @@ const DEFAULTS: EstatutosData = {
   ],
 };
 
-const getExt = (name: string) =>
-  name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
-
-const isImageExt = (ext: string) =>
-  ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
-
-const formatBytes = (value?: string) => {
-  const bytes = Number(value || 0);
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-// ─── Biblioteca picker dialog ─────────────────────────────────────────────────
-function BibliotecaPicker({
+// ─── Edit dialog ──────────────────────────────────────────────────────────────
+function SectionDialog({
+  section,
   open,
   onClose,
-  onSelect,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSelect: (file: SectionFile) => void;
-}) {
-  const [pickerTab, setPickerTab] = useState(0);
-  const [images, setImages] = useState<AssetItem[]>([]);
-  const [docs, setDocs] = useState<AssetItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    Promise.all([
-      fetch(`${API_BASE}/media-assets/images`).then(r => r.json()),
-      fetch(`${API_BASE}/media-assets/files`).then(r => r.json()),
-    ])
-      .then(([imgs, files]) => {
-        setImages(Array.isArray(imgs) ? imgs : []);
-        setDocs(Array.isArray(files) ? files : []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [open]);
-
-  const allItems: AssetItem[] = pickerTab === 0 ? [...images, ...docs] : pickerTab === 1 ? images : docs;
-
-  const filtered = allItems.filter(item =>
-    !search || item.name.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Upload size={18} /> Selecionar da Biblioteca
-      </DialogTitle>
-      <DialogContent dividers>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Pesquisar ficheiro..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        <Tabs value={pickerTab} onChange={(_, v) => setPickerTab(v)} sx={{ mb: 2, borderBottom: '1px solid #e2e8f0' }}>
-          <Tab label={<Stack direction="row" spacing={0.8} alignItems="center"><span>Todos</span><Chip label={images.length + docs.length} size="small" /></Stack>} />
-          <Tab label={<Stack direction="row" spacing={0.8} alignItems="center"><ImageIcon size={13} /><span>Imagens</span><Chip label={images.length} size="small" /></Stack>} />
-          <Tab label={<Stack direction="row" spacing={0.8} alignItems="center"><FileText size={13} /><span>Documentos</span><Chip label={docs.length} size="small" /></Stack>} />
-        </Tabs>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-          </Box>
-        ) : filtered.length === 0 ? (
-          <Typography variant="body2" sx={{ color: '#64748b', textAlign: 'center', py: 4 }}>
-            Sem ficheiros disponíveis. Carregue ficheiros via Biblioteca da Galeria de Media.
-          </Typography>
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.2 }}>
-            {filtered.map(item => {
-              const ext = getExt(item.name);
-              const isImg = isImageExt(ext);
-              return (
-                <Paper
-                  key={item.url}
-                  onClick={() => { onSelect({ label: item.name, url: item.url }); onClose(); }}
-                  sx={{
-                    p: 1, borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden',
-                    cursor: 'pointer', '&:hover': { borderColor: '#164993', boxShadow: '0 0 0 2px #164993' },
-                  }}
-                >
-                  <Box sx={{ width: '100%', aspectRatio: '4/3', borderRadius: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 0.8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {isImg ? (
-                      <Box component="img" src={item.url} alt={item.name} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <Stack spacing={0.5} alignItems="center">
-                        <FileText size={26} color="#475569" />
-                        <Chip label={ext.toUpperCase() || 'FILE'} size="small" sx={{ fontWeight: 700, bgcolor: '#e2e8f0', fontSize: '0.65rem', height: 18 }} />
-                      </Stack>
-                    )}
-                  </Box>
-                  <Typography variant="caption" noWrap sx={{ display: 'block', fontWeight: 600, fontSize: '0.7rem' }}>{item.name}</Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>{formatBytes(item.sizeBytes)}</Typography>
-                </Paper>
-              );
-            })}
-          </Box>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-// ─── Section card ─────────────────────────────────────────────────────────────
-function SectionCard({
-  section,
-  index,
-  onChange,
+  onSave,
   onDelete,
 }: {
   section: Section;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updated: Section) => void;
+  onDelete: () => void;
+}) {
+  const [draft, setDraft] = useState<Section>(section);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => { setDraft(section); }, [section, open]);
+
+  const updateFile = (fi: number, field: keyof SectionFile, value: string) =>
+    setDraft(d => ({ ...d, files: d.files.map((f, i) => i === fi ? { ...f, [field]: value } : f) }));
+
+  const removeFile = (fi: number) =>
+    setDraft(d => ({ ...d, files: d.files.filter((_, i) => i !== fi) }));
+
+  return (
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+            {draft.title || 'Novo Capítulo'}
+          </Typography>
+          <IconButton size="small" onClick={onClose}><X size={18} /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="ID (slug)"
+                value={draft.id}
+                onChange={e => setDraft(d => ({ ...d, id: e.target.value }))}
+                size="small"
+                sx={{ minWidth: 140 }}
+                helperText="Identificador único, sem espaços"
+              />
+              <TextField
+                label="Título da Secção"
+                value={draft.title}
+                onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+                size="small"
+                fullWidth
+              />
+            </Stack>
+            <TextField
+              label="Conteúdo"
+              value={draft.content}
+              onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
+              multiline
+              minRows={4}
+              fullWidth
+              size="small"
+            />
+
+            <Divider />
+
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Ficheiros ({draft.files?.length || 0})
+              </Typography>
+              <Tooltip title="Selecionar ficheiro da Biblioteca">
+                <Button
+                  size="small" variant="outlined"
+                  startIcon={<Upload size={13} />}
+                  onClick={() => setPickerOpen(true)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                >
+                  Biblioteca
+                </Button>
+              </Tooltip>
+            </Stack>
+
+            {(draft.files?.length || 0) === 0 ? (
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                Nenhum ficheiro. Clique em "Biblioteca" para adicionar.
+              </Typography>
+            ) : (
+              <Stack spacing={1}>
+                {draft.files.map((file, fi) => (
+                  <Paper key={fi} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Link2 size={14} color="#475569" />
+                      <TextField
+                        size="small" label="Etiqueta" value={file.label}
+                        onChange={e => updateFile(fi, 'label', e.target.value)}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small" label="URL" value={file.url}
+                        onChange={e => updateFile(fi, 'url', e.target.value)}
+                        sx={{ flex: 2 }}
+                        InputProps={{ readOnly: true }}
+                      />
+                      <IconButton size="small" color="error" onClick={() => removeFile(fi)}>
+                        <Trash2 size={14} />
+                      </IconButton>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button
+            size="small" color="error" startIcon={<Trash2 size={14} />}
+            onClick={() => { onDelete(); onClose(); }}
+            sx={{ textTransform: 'none' }}
+          >
+            Eliminar
+          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+            <Button variant="contained" onClick={() => { onSave(draft); onClose(); }} sx={{ textTransform: 'none', fontWeight: 700 }}>
+              Guardar
+            </Button>
+          </Stack>
+        </DialogActions>
+      </Dialog>
+
+      <SharedFilePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={f => setDraft(d => ({ ...d, files: [...(d.files || []), { label: f.name, url: f.url }] }))}
+      />
+    </>
+  );
+}
+
+// ─── Small card ───────────────────────────────────────────────────────────────
+function SectionCard({
+  section,
+  index,
+  onEdit,
+}: {
+  section: Section;
+  index: number;
+  onEdit: () => void;
+}) {
+  return (
+    <Paper
+      onClick={onEdit}
+      sx={{
+        p: 2, borderRadius: 3, border: '1px solid #e2e8f0', cursor: 'pointer',
+        transition: 'all .15s',
+        '&:hover': { borderColor: '#93c5fd', boxShadow: '0 4px 12px rgba(59,130,246,0.12)', transform: 'translateY(-2px)' },
+      }}
+    >
+      <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+        <Chip
+          label={index + 1} size="small"
+          sx={{ minWidth: 28, bgcolor: '#eef4ff', color: '#164993', fontWeight: 800, borderRadius: 1, flexShrink: 0 }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }} noWrap>
+            {section.title || '(sem título)'}
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+            id: {section.id || '—'}
+          </Typography>
+        </Box>
+        {(section.files?.length || 0) > 0 && (
+          <Tooltip title={`${section.files.length} ficheiro(s)`}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748b' }}>
+              <Paperclip size={13} />
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>{section.files.length}</Typography>
+            </Box>
+          </Tooltip>
+        )}
+        <Edit2 size={14} color="#94a3b8" />
+      </Stack>
+    </Paper>
+  );
+}
   index: number;
   onChange: (idx: number, updated: Section) => void;
   onDelete: (idx: number) => void;
@@ -251,96 +307,13 @@ function SectionCard({
                   helperText="Identificador único, sem espaços"
                 />
                 <TextField
-                  label="Título da Secção"
-                  value={section.title}
-                  onChange={e => onChange(index, { ...section, title: e.target.value })}
-                  size="small"
-                  fullWidth
-                />
-              </Stack>
-              <TextField
-                label="Conteúdo"
-                value={section.content}
-                onChange={e => onChange(index, { ...section, content: e.target.value })}
-                multiline
-                minRows={4}
-                fullWidth
-                size="small"
-              />
-
-              <Divider />
-
-              {/* Per-section files */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  Ficheiros para download ({section.files?.length || 0})
-                </Typography>
-                <Tooltip title="Selecionar ficheiro da Biblioteca">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<Upload size={13} />}
-                    onClick={() => setPickerOpen(true)}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Biblioteca
-                  </Button>
-                </Tooltip>
-              </Stack>
-
-              {(section.files?.length || 0) === 0 ? (
-                <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                  Nenhum ficheiro associado. Clique em "Biblioteca" para adicionar.
-                </Typography>
-              ) : (
-                <Stack spacing={1}>
-                  {section.files.map((file, fi) => (
-                    <Paper key={fi} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Link2 size={14} color="#475569" />
-                        <TextField
-                          size="small"
-                          label="Etiqueta"
-                          value={file.label}
-                          onChange={e => updateFile(fi, 'label', e.target.value)}
-                          sx={{ flex: 1 }}
-                        />
-                        <TextField
-                          size="small"
-                          label="URL"
-                          value={file.url}
-                          onChange={e => updateFile(fi, 'url', e.target.value)}
-                          sx={{ flex: 2 }}
-                          InputProps={{ readOnly: true }}
-                        />
-                        <IconButton size="small" color="error" onClick={() => removeFile(fi)}>
-                          <Trash2 size={14} />
-                        </IconButton>
-                      </Stack>
-                    </Paper>
-                  ))}
-                </Stack>
-              )}
-            </Stack>
-          </Box>
-        )}
-      </Paper>
-
-      <BibliotecaPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={addFile}
-      />
-    </>
-  );
-}
-
 // ─── Main editor ─────────────────────────────────────────────────────────────
 export default function EstatutosEditor() {
   const [data, setData] = useState<EstatutosData>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -455,22 +428,43 @@ export default function EstatutosEditor() {
           size="small"
           variant="outlined"
           startIcon={<Plus size={14} />}
-          onClick={addSection}
+          onClick={() => {
+            const newIdx = data.sections.length;
+            addSection();
+            // open dialog for the new item after state update
+            setTimeout(() => setEditIdx(newIdx), 0);
+          }}
           sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
         >
           Novo Capítulo
         </Button>
       </Stack>
 
-      {data.sections.map((section, idx) => (
-        <SectionCard
-          key={idx}
-          section={section}
-          index={idx}
-          onChange={updateSection}
-          onDelete={deleteSection}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2, mb: 3 }}>
+        {data.sections.map((section, idx) => (
+          <SectionCard
+            key={idx}
+            section={section}
+            index={idx}
+            onEdit={() => setEditIdx(idx)}
+          />
+        ))}
+        {data.sections.length === 0 && (
+          <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic', gridColumn: '1/-1' }}>
+            Sem capítulos. Clique em "Novo Capítulo" para adicionar.
+          </Typography>
+        )}
+      </Box>
+
+      {editIdx !== null && data.sections[editIdx] && (
+        <SectionDialog
+          section={data.sections[editIdx]}
+          open={editIdx !== null}
+          onClose={() => setEditIdx(null)}
+          onSave={updated => updateSection(editIdx, updated)}
+          onDelete={() => { deleteSection(editIdx); setEditIdx(null); }}
         />
-      ))}
+      )}
 
       {data.updatedAt && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
