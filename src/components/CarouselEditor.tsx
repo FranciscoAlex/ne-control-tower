@@ -21,7 +21,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { ArrowDown, ArrowUp, Image, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { GripVertical, Image, Pencil, Plus, Save, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
 
@@ -140,9 +140,10 @@ const getOverlayPresetId = (slide: CarouselSlide): string => {
 export default function CarouselEditor() {
   const [data, setData] = useState<CarouselSlidesData>({ updatedAt: '', slides: [] });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [savingSlideId, setSavingSlideId] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [customGradientOpen, setCustomGradientOpen] = useState(false);
   const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +195,18 @@ export default function CarouselEditor() {
     });
   };
 
+  const handleDrop = (toIdx: number) => {
+    if (dragIdx === null || dragIdx === toIdx) return;
+    setData((prev) => {
+      const next = [...prev.slides];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, slides: reorder(next) };
+    });
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
   const addSlide = () => {
     setData((prev) => {
       const newSlide = { ...EMPTY_SLIDE(), order: prev.slides.length };
@@ -239,28 +252,6 @@ export default function CarouselEditor() {
   const handleImageLibrarySelect = (f: { url: string }) => {
     if (editingIndex === null) return;
     updateSlide(editingIndex, { imageUrl: f.url });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
-    try {
-      const res = await fetch(`${API_BASE}/carousel-slides`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const updated: CarouselSlidesData = await res.json();
-      setData({ ...updated, slides: (updated.slides || []).map(normalizeSlide) });
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3500);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao guardar slides.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleApplySlide = async (slideId: string) => {
@@ -329,33 +320,14 @@ export default function CarouselEditor() {
     <Stack spacing={4}>
       <PageUrlBanner urls={{ path: '/', label: 'Página Principal — Carrossel de Destaque' }} />
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Box>
-          <Typography variant="h6" fontWeight={800} sx={{ color: '#1e293b' }}>
-            Slides do Carrossel
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Gerir os banners principais da página inicial. Adicione botões e links para direcionar os utilizadores.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={18} />}
-          onClick={handleSave}
-          disabled={saving}
-          sx={{ 
-            borderRadius: 3, 
-            textTransform: 'none', 
-            fontWeight: 700,
-            px: 3,
-            height: 48,
-            boxShadow: '0 4px 12px rgba(11, 58, 130, 0.25)',
-            '&:hover': { boxShadow: '0 6px 16px rgba(11, 58, 130, 0.35)' }
-          }}
-        >
-          {saving ? 'A guardar…' : 'Guardar Alterações'}
-        </Button>
-      </Stack>
+      <Box>
+        <Typography variant="h6" fontWeight={800} sx={{ color: '#1e293b' }}>
+          Slides do Carrossel
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Gerir os banners principais da página inicial. Adicione botões e links para direcionar os utilizadores.
+        </Typography>
+      </Box>
 
       {error && <Alert severity="error" sx={{ borderRadius: 3 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ borderRadius: 3 }}>Mudanças aplicadas com sucesso!</Alert>}
@@ -365,167 +337,194 @@ export default function CarouselEditor() {
           <Grid key={slide.id} size={{ xs: 12, md: 6, xl: 4 }}>
             <Paper
               elevation={0}
+              draggable
+              onDragStart={() => setDragIdx(index)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(index); }}
+              onDrop={() => handleDrop(index)}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              onClick={() => openEditDialog(index)}
               sx={{
+                borderRadius: 3,
+                border: dragOverIdx === index && dragIdx !== index
+                  ? '2px dashed #164993'
+                  : '1px solid #e2e8f0',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                opacity: dragIdx === index ? 0.45 : slide.active ? 1 : 0.72,
+                transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.15s',
+                display: 'flex',
+                flexDirection: 'column',
                 height: '100%',
-                p: 2.5,
-                borderRadius: 5,
-                border: '1px solid',
-                borderColor: slide.active ? '#dbe3f0' : '#eef2f7',
-                bgcolor: slide.active ? '#fff' : '#f8fafc',
-                opacity: slide.active ? 1 : 0.82,
-                transition: 'all 0.25s ease',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 14px 28px rgba(15, 23, 42, 0.08)',
-                  borderColor: '#c7d5ea',
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.10)',
                 },
+                '&:hover .slide-edit-badge': { opacity: 1 },
+                '&:hover .slide-drag-handle': { opacity: 1 },
               }}
             >
-              <Stack spacing={2} sx={{ height: '100%' }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 3,
-                        bgcolor: '#0b3a82',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: 14,
-                      }}
-                    >
-                      {index + 1}
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                        Banner {index + 1}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={slide.active ? 'Activo' : 'Inactivo'}
-                        sx={{
-                          mt: 0.5,
-                          bgcolor: slide.active ? alpha('#16a34a', 0.12) : alpha('#94a3b8', 0.14),
-                          color: slide.active ? '#166534' : '#475569',
-                          fontWeight: 700,
-                        }}
-                      />
-                    </Box>
-                  </Stack>
-
-                  <Stack direction="row" spacing={0.5}>
-                    <IconButton
-                      size="small"
-                      onClick={() => moveUp(index)}
-                      disabled={index === 0}
-                      sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
-                    >
-                      <ArrowUp size={16} />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => moveDown(index)}
-                      disabled={index === data.slides.length - 1}
-                      sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
-                    >
-                      <ArrowDown size={16} />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => deleteSlide(index)}
-                      sx={{ bgcolor: alpha('#ef4444', 0.1), '&:hover': { bgcolor: alpha('#ef4444', 0.2) } }}
-                    >
-                      <Trash2 size={16} />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-
-                <Box
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '16/10',
-                    borderRadius: 4,
+              {/* ── Image banner — mirrors MilestoneGridCard header ── */}
+              <Box
+                sx={{
+                  position: 'relative',
+                  height: 150,
+                  flexShrink: 0,
+                  backgroundImage: slide.imageUrl
+                    ? `linear-gradient(${hexToRgba(slide.overlayStartColor || DEFAULT_OVERLAY_START, slide.overlayStartOpacity ?? DEFAULT_OVERLAY_START_OPACITY)}, ${hexToRgba(slide.overlayEndColor || DEFAULT_OVERLAY_END, slide.overlayEndOpacity ?? DEFAULT_OVERLAY_END_OPACITY)}), url(${slide.imageUrl})`
+                    : 'linear-gradient(135deg, #164993 0%, #0b3a82 100%)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  p: 2,
+                }}
+              >
+                <Box sx={{ color: '#fff', flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, textShadow: '0 2px 8px rgba(0,0,0,0.4)', lineHeight: 1.3 }}>
+                    {slide.title || 'Sem título'}
+                  </Typography>
+                  <Typography variant="caption" sx={{
+                    opacity: 0.9,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    backgroundColor: '#e2e8f0',
-                    backgroundImage: slide.imageUrl
-                      ? `linear-gradient(${hexToRgba(slide.overlayStartColor || DEFAULT_OVERLAY_START, slide.overlayStartOpacity ?? DEFAULT_OVERLAY_START_OPACITY)}, ${hexToRgba(slide.overlayEndColor || DEFAULT_OVERLAY_END, slide.overlayEndOpacity ?? DEFAULT_OVERLAY_END_OPACITY)}), url(${slide.imageUrl})`
-                      : 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    p: 2,
-                  }}
-                >
-                  <Box sx={{ color: '#fff' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, textShadow: '0 3px 10px rgba(0,0,0,0.35)' }}>
-                      {slide.title || 'Sem título'}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        opacity: 0.95,
-                        textShadow: '0 2px 8px rgba(0,0,0,0.35)',
-                      }}
-                    >
-                      {slide.subtitle || 'Sem descrição definida.'}
-                    </Typography>
-                  </Box>
+                    textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                  }}>
+                    {slide.subtitle || 'Sem descrição'}
+                  </Typography>
                 </Box>
 
-                <Stack spacing={1.25} sx={{ mt: 'auto' }}>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={() => openEditDialog(index)}
-                      sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 700 }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={() => handleApplySlide(slide.id)}
-                      disabled={savingSlideId === slide.id}
-                      startIcon={savingSlideId === slide.id ? <CircularProgress size={14} color="inherit" /> : <Save size={14} />}
-                      sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 700 }}
-                    >
-                      {savingSlideId === slide.id ? 'A aplicar…' : 'Aplicar alterações'}
-                    </Button>
-                  </Stack>
+                {/* Order badge */}
+                <Box sx={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(255,255,255,0.92)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 12,
+                  color: '#164993',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                }}>{index + 1}</Box>
 
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.25 }}>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      {slide.imageUrl ? 'Imagem definida' : 'Sem imagem'}
-                    </Typography>
-                    <Tooltip title={slide.active ? 'Desactivar banner' : 'Activar banner'}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>
-                          {slide.active ? 'Activo' : 'Inactivo'}
-                        </Typography>
-                        <Switch
-                          size="small"
-                          checked={slide.active}
-                          onChange={(e) => updateSlide(index, { active: e.target.checked })}
-                        />
-                      </Stack>
-                    </Tooltip>
-                  </Stack>
+                {/* Drag handle — left of edit button */}
+                <Box className="slide-drag-handle" sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 44,
+                  opacity: 0,
+                  transition: 'opacity 0.15s',
+                  bgcolor: 'rgba(255,255,255,0.92)',
+                  borderRadius: 1.5,
+                  p: 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+                  color: '#64748b',
+                }}>
+                  <GripVertical size={14} />
+                </Box>
+
+                {/* Edit button — top right corner */}
+                <Tooltip title="Editar slide">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); openEditDialog(index); }}
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      bgcolor: 'rgba(255,255,255,0.92)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+                      '&:hover': { bgcolor: '#fff' },
+                    }}
+                  >
+                    <Pencil size={14} color="#164993" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              {/* ── Body ── */}
+              <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Chip
+                    size="small"
+                    label={slide.active ? 'Activo' : 'Inactivo'}
+                    sx={{
+                      bgcolor: slide.active ? alpha('#16a34a', 0.12) : alpha('#94a3b8', 0.14),
+                      color: slide.active ? '#166534' : '#475569',
+                      fontWeight: 700,
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {slide.imageUrl ? 'Com imagem' : 'Sem imagem'}
+                  </Typography>
                 </Stack>
-              </Stack>
+
+                <Typography variant="body2" sx={{
+                  color: '#475569',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 4,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: 1.55,
+                  flex: 1,
+                }}>
+                  {slide.subtitle || 'Sem descrição definida.'}
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         ))}
+
+        {/* ── Add new slide — empty-state card ── */}
+        <Grid size={{ xs: 12, md: 6, xl: 4 }}>
+          <Paper
+            elevation={0}
+            onClick={addSlide}
+            sx={{
+              borderRadius: 3,
+              border: '2px dashed #cbd5e1',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              height: '100%',
+              minHeight: 280,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1.5,
+              color: '#94a3b8',
+              transition: 'border-color 0.18s, color 0.18s, background 0.18s',
+              '&:hover': {
+                borderColor: '#164993',
+                color: '#164993',
+                bgcolor: alpha('#164993', 0.04),
+              },
+            }}
+          >
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              border: '2px dashed currentColor',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Plus size={24} />
+            </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'inherit' }}>
+              Novo Slide
+            </Typography>
+          </Paper>
+        </Grid>
       </Grid>
 
       <Dialog
@@ -882,24 +881,6 @@ export default function CarouselEditor() {
         onSelect={handleImageLibrarySelect}
         title="Biblioteca de imagens do banner"
       />
-
-      <Button
-        variant="outlined"
-        startIcon={<Plus size={20} />}
-        onClick={addSlide}
-        sx={{ 
-          py: 3, 
-          borderRadius: 4, 
-          border: '2px dashed #cbd5e1', 
-          color: '#64748b',
-          transition: 'all 0.2s',
-          '&:hover': { border: '2px dashed #0b3a82', bgcolor: alpha('#0b3a82', 0.04), color: '#0b3a82' },
-          textTransform: 'none',
-          fontWeight: 700
-        }}
-      >
-        Adicionar Novo Slide ao Carrossel
-      </Button>
 
       {/* Hidden file input */}
       <input

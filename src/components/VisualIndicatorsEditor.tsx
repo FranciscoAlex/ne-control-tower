@@ -13,6 +13,7 @@ import {
   Paper,
   Slider,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography,
@@ -51,6 +52,7 @@ interface CardVisualDTO {
 interface CardVisualsDTO {
   updatedAt: string;
   cards: CardVisualDTO[];
+  minhaCarteiraVisible?: boolean;
 }
 
 const CARD_DEFAULTS: CardVisualDTO[] = [
@@ -553,6 +555,7 @@ function CardEditDialog({
 
 export default function VisualIndicatorsEditor() {
   const [cards, setCards] = useState<CardVisualDTO[]>(CARD_DEFAULTS);
+  const [minhaCarteiraVisible, setMinhaCarteiraVisible] = useState(true);
   const [loading, setLoading] = useState(true);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -564,12 +567,19 @@ export default function VisualIndicatorsEditor() {
       .then((r) => r.json())
       .then((data: CardVisualsDTO) => {
         if (data?.cards?.length) setCards(data.cards);
+        if (data?.minhaCarteiraVisible !== undefined) setMinhaCarteiraVisible(data.minhaCarteiraVisible);
       })
       .catch(() => {/* keep defaults */})
       .finally(() => setLoading(false));
   }, []);
 
-  const putCards = async (newCards: CardVisualDTO[]) => {
+  const putPayload = (newCards: CardVisualDTO[], visible: boolean) => ({
+    updatedAt: new Date().toISOString(),
+    cards: newCards,
+    minhaCarteiraVisible: visible,
+  });
+
+  const putCards = async (newCards: CardVisualDTO[], visible = minhaCarteiraVisible) => {
     const token = localStorage.getItem('ct_token') || sessionStorage.getItem('ct_token') || '';
     const res = await fetch(`${API_BASE}/card-visuals`, {
       method: 'PUT',
@@ -577,9 +587,14 @@ export default function VisualIndicatorsEditor() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ updatedAt: new Date().toISOString(), cards: newCards }),
+      body: JSON.stringify(putPayload(newCards, visible)),
     });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
+  };
+
+  const handleToggleCarteira = async (visible: boolean) => {
+    setMinhaCarteiraVisible(visible);
+    try { await putCards(cards, visible); } catch { setMinhaCarteiraVisible(!visible); }
   };
 
   const handleDrop = async (toIdx: number) => {
@@ -592,13 +607,13 @@ export default function VisualIndicatorsEditor() {
     setDragOverIdx(null);
     dragJustFinished.current = true;
     setTimeout(() => { dragJustFinished.current = false; }, 200);
-    try { await putCards(reordered); } catch { /* non-critical */ }
+    try { await putCards(reordered, minhaCarteiraVisible); } catch { /* non-critical */ }
   };
 
   /** Save a single card: optimistically update state, then PUT the full array */
   const handleSaveCard = async (updated: CardVisualDTO) => {
     const newCards = cards.map((c) => (c.key === updated.key ? updated : c));
-    await putCards(newCards);
+    await putCards(newCards, minhaCarteiraVisible);
     setCards(newCards);
   };
 
@@ -621,6 +636,40 @@ export default function VisualIndicatorsEditor() {
           </Typography>
         </Box>
       </Stack>
+
+      {/* Minha Carteira toggle */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3,
+          p: 2,
+          borderRadius: 2,
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle2" fontWeight={700}>
+            Widget “Minha Carteira” no Carousel
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Quando desactivado, o painel de simulação de carteira fica oculto no site público.
+          </Typography>
+        </Box>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="caption" color={minhaCarteiraVisible ? 'text.secondary' : 'error.main'} fontWeight={600}>
+            {minhaCarteiraVisible ? 'Activo' : 'Oculto'}
+          </Typography>
+          <Switch
+            checked={minhaCarteiraVisible}
+            onChange={(_, checked) => handleToggleCarteira(checked)}
+            color="primary"
+          />
+        </Stack>
+      </Paper>
 
       {/* Card grid */}
       <Grid container spacing={2}>

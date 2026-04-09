@@ -10,10 +10,12 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import PageUrlBanner from './PageUrlBanner';
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -47,67 +49,235 @@ function IndicatorCard({ item, onSave, onDelete }: {
   onSave: (i: BusinessIndicator) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [data, setData] = useState<BusinessIndicator>(item);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showExtra, setShowExtra] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => { setData(item); }, [item]);
 
+  const startEdit = () => { setEditing(true); setConfirmDelete(false); };
+  const cancelEdit = () => { setEditing(false); setData(item); setShowExtra(false); setMsg(null); };
+
   const handleSave = async () => {
-    try { setSaving(true); await onSave(data); setEditing(false); setMsg({ type: 'success', text: 'Guardado.' }); }
-    catch { setMsg({ type: 'error', text: 'Erro ao guardar.' }); }
-    finally { setSaving(false); }
+    try {
+      setSaving(true);
+      await onSave(data);
+      setEditing(false);
+      setShowExtra(false);
+      setMsg({ type: 'success', text: 'Guardado.' });
+      setTimeout(() => setMsg(null), 2500);
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao guardar.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
+  const set = (patch: Partial<BusinessIndicator>) => setData(p => ({ ...p, ...patch }));
+
   return (
-    <Paper sx={{ borderRadius: 4, border: '1px solid #e2e8f0', mb: 2, overflow: 'hidden' }}>
-      <Box onClick={() => setOpen(v => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{data.title || '(sem título)'}</Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 0.3, flexWrap: 'wrap' }}>
-              <Chip label={`${data.indicatorValue || '—'} ${data.unit || ''}`} size="small" sx={{ height: 18, fontWeight: 700, fontSize: '0.65rem', bgcolor: '#eef4ff', color: '#164993' }} />
-              <Chip label={data.category} size="small" sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f1f5f9', color: '#475569' }} />
-              <Chip label={`${data.periodYear}${data.periodQuarter ? ` Q${data.periodQuarter}` : ''}`} size="small" sx={{ height: 18, fontWeight: 600, fontSize: '0.65rem', bgcolor: '#f0fdf4', color: '#166534' }} />
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: editing ? '1.5px solid #164993' : '1px solid #e2e8f0',
+        mb: 1.5,
+        overflow: 'hidden',
+        transition: 'border-color 0.15s',
+        '&:hover .kpi-edit-btn': { opacity: 1 },
+      }}
+    >
+      {/* ── Read view ── */}
+      {!editing && (
+        <Box
+          onClick={startEdit}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            px: 2.5,
+            py: 1.75,
+            cursor: 'pointer',
+            gap: 2,
+            '&:hover': { bgcolor: '#f8fafc' },
+          }}
+        >
+          {/* Value badge */}
+          <Box sx={{
+            minWidth: 72,
+            textAlign: 'center',
+            bgcolor: alpha('#164993', 0.08),
+            borderRadius: 2,
+            px: 1.5,
+            py: 0.75,
+            flexShrink: 0,
+          }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 900, color: '#164993', lineHeight: 1 }}>
+              {data.indicatorValue || '—'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>
+              {data.unit}
+            </Typography>
+          </Box>
+
+          {/* Title + meta */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1e293b' }} noWrap>
+              {data.title || '(sem título)'}
+            </Typography>
+            <Stack direction="row" spacing={0.75} sx={{ mt: 0.4, flexWrap: 'wrap' }}>
+              <Chip label={data.category} size="small" sx={{ height: 18, fontSize: '0.63rem', fontWeight: 600, bgcolor: '#f1f5f9', color: '#475569' }} />
+              <Chip label={`${data.periodYear}${data.periodQuarter ? ` Q${data.periodQuarter}` : ''}`} size="small" sx={{ height: 18, fontSize: '0.63rem', fontWeight: 600, bgcolor: '#f0fdf4', color: '#166534' }} />
             </Stack>
           </Box>
-        </Stack>
-        <Stack direction="row" spacing={1} onClick={e => e.stopPropagation()}>
-          {editing
-            ? <><Button size="small" variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={13} /> : <Check size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Guardar</Button>
-                <Button size="small" onClick={() => { setEditing(false); setData(item); }} startIcon={<X size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <Button size="small" onClick={() => { setOpen(true); setEditing(true); }} startIcon={<Pencil size={13} />} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Editar</Button>}
-          {item.id && (confirmDelete
-            ? <><Button size="small" color="error" variant="contained" onClick={() => onDelete(item.id!)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Confirmar</Button>
-                <Button size="small" onClick={() => setConfirmDelete(false)} sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>Cancelar</Button></>
-            : <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /></IconButton>
-          )}
-        </Stack>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ px: 3, pb: 3 }}>
-          {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Título do Indicador *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} disabled={!editing} size="small" fullWidth />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Valor (texto)" value={data.indicatorValue} onChange={e => setData(p => ({ ...p, indicatorValue: e.target.value }))} disabled={!editing} size="small" fullWidth placeholder="ex: 18.4%" />
-              <TextField label="Valor Numérico" type="number" value={data.numericValue ?? ''} onChange={e => setData(p => ({ ...p, numericValue: e.target.value === '' ? null : Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 140 }} />
-              <TextField label="Unidade" value={data.unit} onChange={e => setData(p => ({ ...p, unit: e.target.value }))} disabled={!editing} size="small" sx={{ minWidth: 100 }} placeholder="%, AOA, M USD" />
+
+          {/* Actions */}
+          <Stack direction="row" spacing={0.5} onClick={e => e.stopPropagation()} sx={{ flexShrink: 0 }}>
+            <Tooltip title="Editar">
+              <IconButton className="kpi-edit-btn" size="small" onClick={startEdit}
+                sx={{ opacity: 0, transition: 'opacity 0.15s', bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}>
+                <Pencil size={14} />
+              </IconButton>
+            </Tooltip>
+            {item.id && !confirmDelete && (
+              <Tooltip title="Eliminar">
+                <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)}
+                  sx={{ bgcolor: alpha('#ef4444', 0.08), '&:hover': { bgcolor: alpha('#ef4444', 0.18) } }}>
+                  <Trash2 size={14} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {confirmDelete && (
+              <>
+                <Button size="small" color="error" variant="contained" onClick={() => onDelete(item.id!)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, height: 30 }}>Eliminar</Button>
+                <Button size="small" onClick={() => setConfirmDelete(false)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, height: 30 }}>Cancelar</Button>
+              </>
+            )}
+          </Stack>
+        </Box>
+      )}
+
+      {/* ── Edit form (inline) ── */}
+      {editing && (
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label="Título *"
+                value={data.title}
+                onChange={e => set({ title: e.target.value })}
+                size="small"
+                fullWidth
+                autoFocus
+              />
+              <TextField
+                label="Valor"
+                value={data.indicatorValue}
+                onChange={e => set({ indicatorValue: e.target.value })}
+                size="small"
+                sx={{ minWidth: 120 }}
+                placeholder="ex: 18.4%"
+              />
+              <TextField
+                label="Unidade"
+                value={data.unit}
+                onChange={e => set({ unit: e.target.value })}
+                size="small"
+                sx={{ minWidth: 90 }}
+                placeholder="%, AOA…"
+              />
             </Stack>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField select label="Categoria" value={data.category} onChange={e => setData(p => ({ ...p, category: e.target.value }))} disabled={!editing} size="small" sx={{ minWidth: 160 }} SelectProps={{ native: true }}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </TextField>
-              <TextField label="Ano" type="number" value={data.periodYear} onChange={e => setData(p => ({ ...p, periodYear: Number(e.target.value) }))} disabled={!editing} size="small" sx={{ minWidth: 110 }} />
-              <TextField label="Trimestre (1-4)" type="number" value={data.periodQuarter ?? ''} onChange={e => setData(p => ({ ...p, periodQuarter: e.target.value === '' ? null : Math.min(4, Math.max(1, Number(e.target.value))) }))} disabled={!editing} size="small" sx={{ minWidth: 130 }} placeholder="Opcional" inputProps={{ min: 1, max: 4 }} />
+
+            {/* Extra fields toggle */}
+            <Box>
+              <Button
+                size="small"
+                onClick={() => setShowExtra(v => !v)}
+                endIcon={showExtra ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                sx={{ textTransform: 'none', color: '#64748b', fontSize: 12, px: 0 }}
+              >
+                {showExtra ? 'Ocultar detalhes' : 'Mais detalhes'}
+              </Button>
+              <Collapse in={showExtra}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
+                  <TextField
+                    select
+                    label="Categoria"
+                    value={data.category}
+                    onChange={e => set({ category: e.target.value })}
+                    size="small"
+                    sx={{ minWidth: 150 }}
+                    SelectProps={{ native: true }}
+                  >
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </TextField>
+                  <TextField
+                    label="Ano"
+                    type="number"
+                    value={data.periodYear}
+                    onChange={e => set({ periodYear: Number(e.target.value) })}
+                    size="small"
+                    sx={{ minWidth: 100 }}
+                  />
+                  <TextField
+                    label="Trimestre (1–4)"
+                    type="number"
+                    value={data.periodQuarter ?? ''}
+                    onChange={e => set({ periodQuarter: e.target.value === '' ? null : Math.min(4, Math.max(1, Number(e.target.value))) })}
+                    size="small"
+                    sx={{ minWidth: 130 }}
+                    placeholder="Opcional"
+                    inputProps={{ min: 1, max: 4 }}
+                  />
+                  <TextField
+                    label="Valor numérico"
+                    type="number"
+                    value={data.numericValue ?? ''}
+                    onChange={e => set({ numericValue: e.target.value === '' ? null : Number(e.target.value) })}
+                    size="small"
+                    sx={{ minWidth: 140 }}
+                    placeholder="Opcional"
+                  />
+                </Stack>
+              </Collapse>
+            </Box>
+
+            {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ borderRadius: 2, py: 0 }}>{msg.text}</Alert>}
+
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSave}
+                disabled={saving || !data.title.trim()}
+                startIcon={saving ? <CircularProgress size={13} color="inherit" /> : <Check size={13} />}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+              >
+                {saving ? 'A guardar…' : 'Guardar'}
+              </Button>
+              <Button
+                size="small"
+                onClick={cancelEdit}
+                startIcon={<X size={13} />}
+                sx={{ borderRadius: 2, textTransform: 'none', color: '#64748b' }}
+              >
+                Cancelar
+              </Button>
             </Stack>
           </Stack>
         </Box>
-      </Collapse>
+      )}
+
+      {/* Success flash on read view */}
+      {!editing && msg?.type === 'success' && (
+        <Box sx={{ px: 2.5, pb: 1.25 }}>
+          <Alert severity="success" onClose={() => setMsg(null)} sx={{ borderRadius: 2, py: 0 }}>{msg.text}</Alert>
+        </Box>
+      )}
     </Paper>
   );
 }
