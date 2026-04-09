@@ -782,7 +782,7 @@ export default function MediaGalleryEditor() {
           </Button>
           {previewItem && (
             <Button href={previewItem.url} download={previewItem.name || true} sx={{ textTransform: 'none' }}>
-              Download
+              Baixar
             </Button>
           )}
           <Button onClick={() => setPreviewItem(null)} sx={{ textTransform: 'none' }}>Fechar</Button>

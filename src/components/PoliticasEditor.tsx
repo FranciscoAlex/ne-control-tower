@@ -25,8 +25,7 @@ const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/
 
 type PolicyItem = {
   id: string;
-  question: string;
-  answer: string;
+  label: string;
   sortOrder: number;
   fileUrl?: string;
   fileName?: string;
@@ -37,42 +36,14 @@ type PoliticasData = {
   items: PolicyItem[];
 };
 
-type AssetItem = {
-  name: string;
-  url: string;
-  path: string;
-  extension?: string;
-  sizeBytes?: string;
-  insertedAt?: string;
-};
-
-const getExt = (name: string) =>
-  name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
-
-const isImageExt = (ext: string) =>
-  ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
-
-const formatBytes = (v?: string) => {
-  const b = Number(v || 0);
-  if (!b) return '';
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const DEFAULT_ITEMS: PolicyItem[] = [
-  { id: 'p-1', sortOrder: 1, question: '1. O QUE É O FATCA?', answer: 'O FATCA resulta do acordo entre Angola e os EUA para identificar contas detidas por Pessoas dos EUA e reportar informações financeiras à AGT, nos termos aplicáveis.' },
-  { id: 'p-2', sortOrder: 2, question: '2. QUEM É CONSIDERADO PESSOA DOS EUA?', answer: 'Inclui cidadãos norte-americanos (incluindo dupla nacionalidade), titulares de Green Card, pessoas com nascimento/residência fiscal nos EUA e entidades com beneficiários efectivos enquadráveis.' },
-  { id: 'p-3', sortOrder: 3, question: '3. QUAL O IMPACTO PARA CLIENTES ENSA?', answer: 'A ENSA mantém processos de qualificação e reporte para os casos obrigatórios por lei, sem impacto generalizado para a maioria dos clientes.' },
-  { id: 'p-4', sortOrder: 4, question: '4. LEGISLAÇÃO ANGOLANA RELEVANTE', answer: 'Decreto Legislativo Presidencial n.º 1/17; Decreto Presidencial n.º 33/20; Despacho n.º 1169/20 (no âmbito do regime de reporte FATCA).' },
+  { id: 'p-1', sortOrder: 1, label: 'Política de Investimento' },
+  { id: 'p-2', sortOrder: 2, label: 'Política de Gestão de Riscos' },
+  { id: 'p-3', sortOrder: 3, label: 'Política de Sustentabilidade' },
 ];
 
-function newItem(sortOrder: number): PolicyItem {
-  return { id: `p-${Date.now()}`, question: '', answer: '', sortOrder };
-}
-
 // ─── Edit dialog ──────────────────────────────────────────────────────────────
-function BlockDialog({
+function PolicyDialog({
   item,
   open,
   onClose,
@@ -95,27 +66,19 @@ function BlockDialog({
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-            {draft.question ? draft.question.slice(0, 40) + (draft.question.length > 40 ? '…' : '') : 'Novo Bloco'}
+            {draft.label ? draft.label.slice(0, 50) + (draft.label.length > 50 ? '…' : '') : 'Nova Política'}
           </Typography>
           <IconButton size="small" onClick={onClose}><X size={18} /></IconButton>
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField
-              label="Pergunta / Título"
-              value={draft.question}
-              onChange={e => setDraft(d => ({ ...d, question: e.target.value }))}
-              size="small" fullWidth
-              placeholder="Ex: 1. O QUE É O FATCA?"
+              value={draft.label}
+              onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
+              size="small" fullWidth label="Nome da Política"
+              placeholder="Ex: Política de Investimento"
               helperText={draft.fileUrl ? '✓ Este título será um link de download no site' : undefined}
               FormHelperTextProps={{ sx: { color: '#166534', fontWeight: 600 } }}
-            />
-            <TextField
-              label="Resposta / Corpo do texto"
-              value={draft.answer}
-              onChange={e => setDraft(d => ({ ...d, answer: e.target.value }))}
-              size="small" fullWidth multiline minRows={4}
-              placeholder="Texto explicativo..."
             />
             <Box>
               {draft.fileUrl ? (
@@ -141,7 +104,7 @@ function BlockDialog({
                   onClick={() => setPickerOpen(true)}
                   sx={{ borderRadius: 2, textTransform: 'none', borderStyle: 'dashed', color: '#64748b', borderColor: '#cbd5e1' }}
                 >
-                  Anexar ficheiro a este bloco
+                  Anexar ficheiro a esta política
                 </Button>
               )}
             </Box>
@@ -163,7 +126,7 @@ function BlockDialog({
 }
 
 // ─── Small card ───────────────────────────────────────────────────────────────
-function BlockCard({ item, idx, onEdit }: { item: PolicyItem; idx: number; onEdit: () => void }) {
+function PolicyCard({ item, idx, onEdit }: { item: PolicyItem; idx: number; onEdit: () => void }) {
   return (
     <Paper
       onClick={onEdit}
@@ -177,7 +140,7 @@ function BlockCard({ item, idx, onEdit }: { item: PolicyItem; idx: number; onEdi
         <Chip label={idx + 1} size="small" sx={{ minWidth: 28, bgcolor: '#eef4ff', color: '#164993', fontWeight: 800, borderRadius: 1, flexShrink: 0 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-            {item.question || '(sem título)'}
+            {item.label || '(sem título)'}
           </Typography>
         </Box>
         {item.fileUrl && <Tooltip title="Tem ficheiro anexado"><Paperclip size={13} color="#64748b" /></Tooltip>}
@@ -186,6 +149,8 @@ function BlockCard({ item, idx, onEdit }: { item: PolicyItem; idx: number; onEdi
     </Paper>
   );
 }
+
+// ─── Main editor ──────────────────────────────────────────────────────────────
 export default function PoliticasEditor() {
   const [items, setItems] = useState<PolicyItem[]>(DEFAULT_ITEMS);
   const [updatedAt, setUpdatedAt] = useState('');
@@ -253,48 +218,34 @@ export default function PoliticasEditor() {
         <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b' }}>
-              Blocos de Informação
+              Políticas de Referência
             </Typography>
-            <Chip label={`${items.length} bloco${items.length !== 1 ? 's' : ''}`} size="small"
+            <Chip label={`${items.length} política${items.length !== 1 ? 's' : ''}`} size="small"
               sx={{ bgcolor: '#eef4ff', color: '#164993', fontWeight: 700 }} />
           </Stack>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
-            Cada bloco tem título, texto e um ficheiro opcional. Clique num cartão para editar.
+            Cada política pode ter um ficheiro anexado. Quando um ficheiro está anexado,
+            o nome da política torna-se um link de download no site.
           </Typography>
         </Paper>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
           {items.map((item, idx) => (
-            <BlockCard key={item.id} item={item} idx={idx} onEdit={() => setEditIdx(idx)} />
+            <PolicyCard key={item.id} item={item} idx={idx} onEdit={() => setEditIdx(idx)} />
           ))}
-          {items.length === 0 && (
-            <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic', gridColumn: '1/-1' }}>
-              Sem blocos. Clique em "Adicionar Bloco" para criar.
-            </Typography>
-          )}
         </Box>
-
-        {editIdx !== null && items[editIdx] && (
-          <BlockDialog
-            item={items[editIdx]}
-            open={editIdx !== null}
-            onClose={() => setEditIdx(null)}
-            onSave={updated => setItems(prev => prev.map((it, i) => i === editIdx ? updated : it))}
-            onDelete={() => { setItems(prev => prev.filter((_, i) => i !== editIdx)); setEditIdx(null); }}
-          />
-        )}
 
         <Button
           variant="outlined"
           startIcon={<Plus size={16} />}
           onClick={() => {
-            const newIdx = items.length;
-            setItems(prev => [...prev, newItem(prev.length + 1)]);
-            setTimeout(() => setEditIdx(newIdx), 0);
+            const next = items.length;
+            setItems(prev => [...prev, { id: `p-${Date.now()}`, label: '', sortOrder: next + 1 }]);
+            setTimeout(() => setEditIdx(next), 0);
           }}
           sx={{ alignSelf: 'flex-start', borderRadius: 3, textTransform: 'none', fontWeight: 700 }}
         >
-          Adicionar Bloco
+          Adicionar Política
         </Button>
 
         <Divider />
@@ -316,6 +267,16 @@ export default function PoliticasEditor() {
           )}
         </Stack>
       </Stack>
+
+      {editIdx !== null && items[editIdx] && (
+        <PolicyDialog
+          item={items[editIdx]}
+          open={true}
+          onClose={() => setEditIdx(null)}
+          onSave={updated => setItems(prev => prev.map((it, i) => i === editIdx ? updated : it))}
+          onDelete={() => { setItems(prev => prev.filter((_, i) => i !== editIdx)); setEditIdx(null); }}
+        />
+      )}
     </Box>
   );
 }
