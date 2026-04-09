@@ -744,20 +744,49 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
               {/* Quick-access shortcuts */}
               <Grid container spacing={2}>
                 {[
-                  { label: 'Corpo Directivo', view: 'EXECUTIVE', icon: <Briefcase size={18} />, color: '#164993' },
-                  { label: 'Mensagem do CEO', view: 'CEO_MESSAGE', icon: <MessageSquare size={18} />, color: '#10b981' },
-                  { label: 'Relatórios e Contas', view: 'ANNUAL_REPORTS', icon: <FileText size={18} />, color: '#f59e0b' },
-                  { label: 'Indicadores KPI', view: 'INDICADORES', icon: <PieChart size={18} />, color: '#6366f1' },
-                  { label: 'Assembleias Gerais', view: 'ASSEMBLEIAS', icon: <Users size={18} />, color: '#0891b2' },
-                  { label: 'Comunicados', view: 'COMUNICADOS', icon: <Newspaper size={18} />, color: '#dc2626' },
+                  { label: 'Corpo Directivo', view: 'EXECUTIVE', icon: <Briefcase size={22} />, color: '#164993' },
+                  { label: 'Mensagem do CEO', view: 'CEO_MESSAGE', icon: <MessageSquare size={22} />, color: '#10b981' },
+                  { label: 'Relatórios e Contas', view: 'ANNUAL_REPORTS', icon: <FileText size={22} />, color: '#f59e0b' },
+                  { label: 'Indicadores KPI', view: 'INDICADORES', icon: <PieChart size={22} />, color: '#6366f1' },
+                  { label: 'Assembleias Gerais', view: 'ASSEMBLEIAS', icon: <Users size={22} />, color: '#0891b2' },
+                  { label: 'Comunicados', view: 'COMUNICADOS', icon: <Newspaper size={22} />, color: '#dc2626' },
                 ].map((item) => (
                   <Grid size={{ xs: 6, sm: 4, md: 2 }} key={item.view}>
                     <Paper
+                      elevation={0}
                       onClick={() => navigate(item.view as ViewMode)}
-                      sx={{ p: 2.5, borderRadius: 4, border: '1px solid #f1f5f9', cursor: 'pointer', textAlign: 'center', transition: 'all .15s', '&:hover': { borderColor: item.color, transform: 'translateY(-2px)', boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}` } }}
+                      sx={{
+                        borderRadius: 3,
+                        border: '1px solid #e2e8f0',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        '&:hover': {
+                          transform: 'translateY(-3px)',
+                          boxShadow: '0 12px 32px rgba(0,0,0,0.10)',
+                        },
+                      }}
                     >
-                      <Box sx={{ color: item.color, display: 'flex', justifyContent: 'center', mb: 1 }}>{item.icon}</Box>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#1e293b', display: 'block', lineHeight: 1.3 }}>{item.label}</Typography>
+                      {/* Coloured banner — mirrors MilestoneGridCard's header */}
+                      <Box sx={{
+                        height: 72,
+                        bgcolor: item.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        color: '#fff',
+                      }}>
+                        {item.icon}
+                      </Box>
+                      {/* Body */}
+                      <Box sx={{ p: 1.5, textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>
+                          {item.label}
+                        </Typography>
+                      </Box>
                     </Paper>
                   </Grid>
                 ))}

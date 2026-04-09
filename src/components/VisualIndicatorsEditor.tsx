@@ -18,7 +18,7 @@ import {
   Typography,
   alpha,
 } from '@mui/material';
-import { X } from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 import InsightsIcon from '@mui/icons-material/Insights';
 import EqualizerIcon from '@mui/icons-material/Equalizer';
 import {
@@ -29,6 +29,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Pencil, Save } from 'lucide-react';
+
 
 const PRIMARY_MAIN = '#164993';
 const SECONDARY_MAIN = '#e63c2e';
@@ -554,6 +555,9 @@ export default function VisualIndicatorsEditor() {
   const [cards, setCards] = useState<CardVisualDTO[]>(CARD_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragJustFinished = useRef(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/card-visuals`)
@@ -565,9 +569,7 @@ export default function VisualIndicatorsEditor() {
       .finally(() => setLoading(false));
   }, []);
 
-  /** Save a single card: optimistically update state, then PUT the full array */
-  const handleSaveCard = async (updated: CardVisualDTO) => {
-    const newCards = cards.map((c) => (c.key === updated.key ? updated : c));
+  const putCards = async (newCards: CardVisualDTO[]) => {
     const token = localStorage.getItem('ct_token') || sessionStorage.getItem('ct_token') || '';
     const res = await fetch(`${API_BASE}/card-visuals`, {
       method: 'PUT',
@@ -578,6 +580,25 @@ export default function VisualIndicatorsEditor() {
       body: JSON.stringify({ updatedAt: new Date().toISOString(), cards: newCards }),
     });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
+  };
+
+  const handleDrop = async (toIdx: number) => {
+    if (dragIdx === null || dragIdx === toIdx) return;
+    const reordered = [...cards];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    setCards(reordered);
+    setDragIdx(null);
+    setDragOverIdx(null);
+    dragJustFinished.current = true;
+    setTimeout(() => { dragJustFinished.current = false; }, 200);
+    try { await putCards(reordered); } catch { /* non-critical */ }
+  };
+
+  /** Save a single card: optimistically update state, then PUT the full array */
+  const handleSaveCard = async (updated: CardVisualDTO) => {
+    const newCards = cards.map((c) => (c.key === updated.key ? updated : c));
+    await putCards(newCards);
     setCards(newCards);
   };
 
@@ -596,7 +617,7 @@ export default function VisualIndicatorsEditor() {
         <Box>
           <Typography variant="h5" fontWeight={700}>Indicadores Visuais</Typography>
           <Typography variant="body2" color="text.secondary">
-            Clique num cartão para editar as suas cores e estilos.
+            Clique num cartão para editar as suas cores e estilos. Arraste para reordenar.
           </Typography>
         </Box>
       </Stack>
@@ -606,20 +627,49 @@ export default function VisualIndicatorsEditor() {
         {cards.map((card, idx) => (
           <Grid key={card.key} size={{ xs: 12, sm: 6 }}>
             <Box
-              onClick={() => setEditingIdx(idx)}
+              draggable
+              onDragStart={() => setDragIdx(idx)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              onClick={() => { if (dragJustFinished.current) return; setEditingIdx(idx); }}
               sx={{
-                cursor: 'pointer',
+                cursor: 'grab',
                 position: 'relative',
                 borderRadius: 1.5,
-                transition: 'transform 0.15s, box-shadow 0.15s',
+                transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.15s',
+                opacity: dragIdx === idx ? 0.45 : 1,
+                outline: dragOverIdx === idx && dragIdx !== idx ? '2px dashed #164993' : 'none',
+                outlineOffset: 2,
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   boxShadow: '0 12px 32px rgba(0,0,0,0.10)',
                 },
                 '&:hover .edit-badge': { opacity: 1 },
+                '&:hover .drag-grip': { opacity: 1 },
               }}
             >
               <MetricCardPreview card={card} />
+              {/* Drag grip */}
+              <Box
+                className="drag-grip"
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  opacity: 0,
+                  transition: 'opacity 0.15s',
+                  bgcolor: 'rgba(255,255,255,0.9)',
+                  borderRadius: 1,
+                  p: 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  pointerEvents: 'none',
+                }}
+              >
+                <GripVertical size={14} color="#555" />
+              </Box>
               {/* Edit badge overlay */}
               <Box
                 className="edit-badge"
