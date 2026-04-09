@@ -2,7 +2,7 @@ import { Box, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { ExternalLink, Eye } from 'lucide-react';
 
 const MAIN_ORIGIN = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3000';
-const BASE_PATH = '/ensa';
+const BASE_PATH = '';
 
 interface UrlEntry {
   label: string;
@@ -37,9 +37,6 @@ export default function PageUrlBanner({ urls }: Props) {
     >
       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: '#1d4ed8', flexShrink: 0 }}>
         <Eye size={14} />
-        <Typography variant="caption" sx={{ fontWeight: 700, color: '#1d4ed8', letterSpacing: 0.5 }}>
-          Visible em:
-        </Typography>
       </Stack>
 
       {entries.map(e => (
