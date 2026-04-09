@@ -576,6 +576,7 @@ export default function MediaGalleryEditor() {
                     component="img"
                     src={item.url}
                     alt={item.name}
+                    loading="lazy"
                     sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -713,7 +714,7 @@ export default function MediaGalleryEditor() {
                   >
                     <Box sx={{ width: '100%', aspectRatio: '4/3', borderRadius: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 0.8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {isImg ? (
-                        <Box component="img" src={item.url} alt={item.name} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <Box component="img" src={item.url} alt={item.name} loading="lazy" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <Stack spacing={0.5} alignItems="center">
                           <FileText size={28} color="#475569" />
