@@ -34,8 +34,6 @@ type EstatutosData = {
   legalBase: string;
   documentUrl: string;
   documentLabel: string;
-  eticaDocumentUrl: string;
-  eticaDocumentLabel: string;
   updatedAt: string;
   sections: Section[];
 };
@@ -45,8 +43,6 @@ const DEFAULTS: EstatutosData = {
   legalBase: 'Lei das Sociedades Comerciais',
   documentUrl: '',
   documentLabel: 'Estatutos Sociais da ENSA',
-  eticaDocumentUrl: '',
-  eticaDocumentLabel: 'Código de Ética ENSA',
   updatedAt: '',
   sections: [
     { id: 'natureza', title: 'Natureza e Firma', content: '' },
@@ -178,7 +174,6 @@ export default function EstatutosEditor() {
   const [editIdx, setEditIdx] = useState<number | null>(null);
 
   const [docPickerOpen, setDocPickerOpen] = useState(false);
-  const [eticaPickerOpen, setEticaPickerOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -211,7 +206,7 @@ export default function EstatutosEditor() {
       });
       if (!res.ok) throw new Error();
       const saved: EstatutosData = await res.json();
-      setData({ ...saved, sections: (saved.sections || []).map(s => ({ ...s, files: s.files || [] })) });
+      setData({ ...saved, sections: (saved.sections || []).map(s => ({ id: s.id, title: s.title, content: s.content })) });
       showMsg('success', 'Secção guardada com sucesso.');
     } catch {
       showMsg('error', 'Erro ao guardar a secção.');
@@ -236,27 +231,6 @@ export default function EstatutosEditor() {
       showMsg('success', 'Documento guardado com sucesso.');
     } catch {
       showMsg('error', 'Erro ao guardar o documento.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveEticaDocument = async (url: string) => {
-    const newData = { ...data, eticaDocumentUrl: url };
-    setData(newData);
-    try {
-      setSaving(true);
-      const res = await fetch(`${API_BASE}/estatutos`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newData),
-      });
-      if (!res.ok) throw new Error();
-      const saved: EstatutosData = await res.json();
-      setData({ ...DEFAULTS, ...saved, sections: (saved.sections || []).map(s => ({ id: s.id, title: s.title, content: s.content })) });
-      showMsg('success', 'Documento de ética guardado com sucesso.');
-    } catch {
-      showMsg('error', 'Erro ao guardar o documento de ética.');
     } finally {
       setSaving(false);
     }
@@ -363,56 +337,6 @@ export default function EstatutosEditor() {
         open={docPickerOpen}
         onClose={() => setDocPickerOpen(false)}
         onSelect={f => { setDocPickerOpen(false); handleSaveDocument(f.url); }}
-      />
-
-      {/* Código de Ética document */}
-      <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Documento do Código de Ética</Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-          <TextField
-            label="Etiqueta do documento"
-            value={data.eticaDocumentLabel}
-            onChange={e => setData(p => ({ ...p, eticaDocumentLabel: e.target.value }))}
-            size="small"
-            sx={{ minWidth: 220 }}
-          />
-          <TextField
-            label="URL do ficheiro"
-            value={data.eticaDocumentUrl}
-            size="small"
-            fullWidth
-            InputProps={{ readOnly: true }}
-            placeholder="Selecione um ficheiro da Biblioteca"
-          />
-          <Tooltip title="Selecionar ficheiro da Biblioteca">
-            <Button
-              variant="outlined"
-              startIcon={<Upload size={14} />}
-              onClick={() => setEticaPickerOpen(true)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flexShrink: 0 }}
-            >
-              Biblioteca
-            </Button>
-          </Tooltip>
-          {data.eticaDocumentUrl && (
-            <Tooltip title="Remover documento">
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => handleSaveEticaDocument('')}
-                sx={{ borderRadius: 2, textTransform: 'none', flexShrink: 0 }}
-              >
-                Remover
-              </Button>
-            </Tooltip>
-          )}
-        </Stack>
-      </Paper>
-
-      <SharedFilePicker
-        open={eticaPickerOpen}
-        onClose={() => setEticaPickerOpen(false)}
-        onSelect={f => { setEticaPickerOpen(false); handleSaveEticaDocument(f.url); }}
       />
 
       <Divider sx={{ mb: 3 }} />
