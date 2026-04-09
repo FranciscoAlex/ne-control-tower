@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -26,15 +26,14 @@ import {
   Plus, 
   Save, 
   Trash2, 
-  Upload, 
   UserPlus, 
   Edit2, 
-  Image as ImageIcon,
   MoreVertical,
   X
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
+import { Switch, FormControlLabel } from '@mui/material';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -43,6 +42,8 @@ type OrganMember = {
   role: string;
   photoUrl: string;
   bio?: string;
+  hyperlink?: string;
+  active?: boolean;
 };
 
 type Organ = {
@@ -115,45 +116,23 @@ function MemberEditDialog({
   member,
   color,
   onSave,
-  onOpenLibrary,
 }: {
   open: boolean;
   onClose: () => void;
   member: OrganMember | null;
   color: string;
   onSave: (updated: OrganMember) => void;
-  onOpenLibrary: () => void;
 }) {
-  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '' });
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', hyperlink: '', active: true });
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (member) {
-      setLocalMember(member);
+      setLocalMember({ active: true, ...member });
     } else {
-      setLocalMember({ name: '', role: '', photoUrl: '', bio: '' });
+      setLocalMember({ name: '', role: '', photoUrl: '', bio: '', hyperlink: '', active: true });
     }
   }, [member, open]);
-
-  const uploadPhoto = async (file: File) => {
-    try {
-      setUploading(true);
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${API_BASE}/media-assets/images/upload`, {
-        method: 'POST',
-        body: form,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload = await res.json() as { url?: string };
-      if (payload.url) {
-        setLocalMember(prev => ({ ...prev, photoUrl: payload.url || '' }));
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const currentInitials = localMember.name
     .split(' ')
@@ -186,7 +165,7 @@ function MemberEditDialog({
         <DialogContent sx={{ p: 3, pt: 1 }}>
           <Stack spacing={3}>
             <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-              <Box sx={{ position: 'relative' }}>
+              <Box sx={{ position: 'relative', flexShrink: 0 }}>
                 <Avatar
                   src={localMember.photoUrl}
                   sx={{
@@ -201,53 +180,22 @@ function MemberEditDialog({
                 >
                   {currentInitials}
                 </Avatar>
-                <IconButton
-                  size="small"
-                  onClick={() => fileInputRef.current?.click()}
-                  sx={{
-                    position: 'absolute',
-                    bottom: -4,
-                    right: -4,
-                    bgcolor: 'white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    '&:hover': { bgcolor: '#f8fafc' }
-                  }}
-                >
-                  <Upload size={14} />
-                </IconButton>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadPhoto(file);
-                    e.target.value = '';
-                  }}
-                />
               </Box>
               <Stack spacing={1} sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>FOTO DO PERFIL</Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button 
-                    size="small" 
-                    variant="outlined" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                  >
-                    {uploading ? 'A carregar...' : 'Carregar'}
-                  </Button>
-                  <Button 
-                    size="small" 
-                    variant="outlined" 
-                    onClick={() => onOpenLibrary()}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Biblioteca
-                  </Button>
-                </Stack>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={() => setPickerOpen(true)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
+                >
+                  Selecionar da Biblioteca
+                </Button>
+                {localMember.photoUrl && (
+                  <Typography variant="caption" sx={{ color: '#94a3b8', wordBreak: 'break-all' }}>
+                    {localMember.photoUrl.split('/').pop()}
+                  </Typography>
+                )}
               </Stack>
             </Box>
 
@@ -271,10 +219,11 @@ function MemberEditDialog({
 
             <TextField
               fullWidth
-              label="URL Foto (opcional)"
-              value={localMember.photoUrl}
-              onChange={e => setLocalMember(prev => ({ ...prev, photoUrl: e.target.value }))}
+              label="Hiperligação (abre em novo separador)"
+              value={localMember.hyperlink || ''}
+              onChange={e => setLocalMember(prev => ({ ...prev, hyperlink: e.target.value }))}
               placeholder="https://..."
+              helperText="Quando preenchido, o card do membro abre este link ao ser clicado."
               InputProps={{ sx: { borderRadius: 2 } }}
             />
 
@@ -288,13 +237,33 @@ function MemberEditDialog({
               minRows={4}
               InputProps={{ sx: { borderRadius: 2 } }}
             />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={localMember.active !== false}
+                  onChange={e => setLocalMember(prev => ({ ...prev, active: e.target.checked }))}
+                  color="primary"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {localMember.active !== false ? 'Card visível no site' : 'Card oculto no site'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                    Quando desactivado, este membro não aparece na página pública.
+                  </Typography>
+                </Box>
+              }
+            />
           </Stack>
         </DialogContent>
 
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button 
             variant="contained" 
-            onClick={() => onSave(localMember)}
+            onClick={() => onSave({ ...localMember, hyperlink: localMember.hyperlink?.trim() || undefined })}
             disabled={!localMember.name}
             sx={{ borderRadius: 2, px: 4, fontWeight: 700 }}
           >
@@ -302,6 +271,13 @@ function MemberEditDialog({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SharedFilePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={f => { setLocalMember(prev => ({ ...prev, photoUrl: f.url })); setPickerOpen(false); }}
+        title="Biblioteca de Imagens"
+      />
     </>
   );
 }
@@ -366,6 +342,9 @@ function MemberCard({
           <Typography variant="caption" noWrap sx={{ color: '#64748b', display: 'block', fontWeight: 500 }}>
             {member.role || '(sem cargo)'}
           </Typography>
+          {member.active === false && (
+            <Chip label="Oculto" size="small" sx={{ mt: 0.5, bgcolor: '#fef2f2', color: '#ef4444', fontWeight: 700, fontSize: 10, height: 18 }} />
+          )}
         </Box>
         <Stack direction="row">
           <Tooltip title="Editar">
@@ -553,11 +532,11 @@ export default function OrgaosSociaisEditor() {
   const [data, setData] = useState<OrganMembersData>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [organsDirty, setOrgansDirty] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // Member edit state
   const [editingMember, setEditingMember] = useState<{ organIdx: number; memberIdx: number | null } | null>(null);
-  const [imageLibraryTarget, setImageLibraryTarget] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -573,17 +552,22 @@ export default function OrgaosSociaisEditor() {
     setTimeout(() => setMsg(null), 4000);
   };
 
+  const saveToApi = async (payload: OrganMembersData): Promise<OrganMembersData> => {
+    const res = await fetch(`${API_BASE}/organ-members`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ensureConselhoAdministracao(payload)),
+    });
+    if (!res.ok) throw new Error();
+    return res.json();
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await fetch(`${API_BASE}/organ-members`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ensureConselhoAdministracao(data)),
-      });
-      if (!res.ok) throw new Error();
-      const updated: OrganMembersData = await res.json();
+      const updated = await saveToApi(data);
       setData(ensureConselhoAdministracao(updated));
+      setOrgansDirty(false);
       showMsg('success', 'Órgãos sociais guardados com sucesso.');
     } catch {
       showMsg('error', 'Erro ao guardar os dados.');
@@ -592,19 +576,23 @@ export default function OrgaosSociaisEditor() {
     }
   };
 
-  const updateOrgan = (organIdx: number, updated: Organ) =>
+  const updateOrgan = (organIdx: number, updated: Organ) => {
     setData(prev => ({
       ...prev,
       organs: prev.organs.map((o, i) => (i === organIdx ? updated : o)),
     }));
+    setOrgansDirty(true);
+  };
 
-  const deleteOrgan = (organIdx: number) =>
+  const deleteOrgan = (organIdx: number) => {
     setData(prev => ({
       ...prev,
       organs: prev.organs.filter((_, i) => i !== organIdx),
     }));
+    setOrgansDirty(true);
+  };
 
-  const addOrgan = () =>
+  const addOrgan = () => {
     setData(prev => ({
       ...prev,
       organs: [
@@ -618,32 +606,45 @@ export default function OrgaosSociaisEditor() {
         },
       ],
     }));
+    setOrgansDirty(true);
+  };
 
   // Member operations
   const handleOpenMemberEdit = (organIdx: number, memberIdx: number | null) => {
     setEditingMember({ organIdx, memberIdx });
   };
 
-  const handleSaveMember = (updated: OrganMember) => {
+  const handleSaveMember = async (updated: OrganMember) => {
     if (!editingMember) return;
     const { organIdx, memberIdx } = editingMember;
 
-    setData(prev => ({
-      ...prev,
-      organs: prev.organs.map((o, i) => {
+    const newData: OrganMembersData = {
+      ...data,
+      organs: data.organs.map((o, i) => {
         if (i !== organIdx) return o;
-        
-        let newMembers = [...o.members];
+        const newMembers = [...o.members];
         if (memberIdx === null) {
           newMembers.push(updated);
         } else {
           newMembers[memberIdx] = updated;
         }
-        
         return { ...o, members: newMembers };
       }),
-    }));
+    };
+
     setEditingMember(null);
+
+    try {
+      setSaving(true);
+      const saved = await saveToApi(newData);
+      setData(ensureConselhoAdministracao(saved));
+      showMsg('success', 'Membro guardado com sucesso.');
+    } catch {
+      setData(newData); // keep local changes even if API fails
+      showMsg('error', 'Erro ao guardar o membro.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteMember = (organIdx: number, memberIdx: number) => {
@@ -656,11 +657,8 @@ export default function OrgaosSociaisEditor() {
     }));
   };
 
-  const applyImageToEditingMember = (url: string) => {
-    // This is handled by passing a library callback to the dialog or letting the editor handle it
-    // For simplicity, we'll just implement the library in the dialog via a special state if needed
-    // or just use the SharedImagePickerDialog here.
-  };
+  const applyImageToEditingMember = (_url: string) => {};
+  void applyImageToEditingMember;
 
   if (loading) {
     return (
@@ -710,16 +708,18 @@ export default function OrgaosSociaisEditor() {
           >
             Adicionar Órgão
           </Button>
-          <Button
-            variant="contained"
-            disableElevation
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
-            onClick={handleSave}
-            disabled={saving}
-            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 4 }}
-          >
-            {saving ? 'A guardar…' : 'Gravar Alterações'}
-          </Button>
+          {organsDirty && (
+            <Button
+              variant="contained"
+              disableElevation
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
+              onClick={handleSave}
+              disabled={saving}
+              sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 4 }}
+            >
+              {saving ? 'A guardar…' : 'Gravar Alterações'}
+            </Button>
+          )}
         </Stack>
       </Stack>
 
@@ -757,16 +757,6 @@ export default function OrgaosSociaisEditor() {
         member={currentEditedMemberData}
         color={currentEditedMemberColor}
         onSave={handleSaveMember}
-        onOpenLibrary={() => setImageLibraryTarget(true)}
-      />
-
-      <SharedFilePicker
-        open={imageLibraryTarget}
-        onClose={() => setImageLibraryTarget(false)}
-        onSelect={(f) => {
-          setImageLibraryTarget(false);
-        }}
-        title="Biblioteca de Imagens"
       />
     </Box>
   );

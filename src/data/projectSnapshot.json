@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-09T00:00:52.770Z",
+  "generatedAt": "2026-04-09T11:59:55.677Z",
   "sourceRoot": "src",
-  "totalFiles": 60,
+  "totalFiles": 61,
   "sections": [
     {
       "id": "pages",
@@ -169,16 +169,16 @@
       "id": "hooks",
       "label": "Hooks",
       "relativePath": "src/hooks",
-      "totalFiles": 5,
+      "totalFiles": 6,
       "groups": [
         {
           "name": "query",
-          "fileCount": 5,
+          "fileCount": 6,
           "sampleFiles": [
             "query/index.ts",
             "query/queryConfig.tsx",
             "query/useAuth.ts",
-            "query/useInvestorContent.ts"
+            "query/useIDBQuery.ts"
           ]
         }
       ],
@@ -186,6 +186,7 @@
         "query/index.ts",
         "query/queryConfig.tsx",
         "query/useAuth.ts",
+        "query/useIDBQuery.ts",
         "query/useInvestorContent.ts",
         "query/useStaticData.ts"
       ]

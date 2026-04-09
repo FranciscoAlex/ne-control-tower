@@ -17,46 +17,39 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Edit2, FileText, Link2, Paperclip, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { Edit2, Plus, Trash2, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
-type SectionFile = { label: string; url: string };
-
 type Section = {
   id: string;
   title: string;
   content: string;
-  files: SectionFile[];
 };
 
 type EstatutosData = {
   lastUpdateLabel: string;
   legalBase: string;
+  documentUrl: string;
+  documentLabel: string;
   updatedAt: string;
   sections: Section[];
-};
-
-type AssetItem = {
-  name: string;
-  url: string;
-  path: string;
-  extension?: string;
-  sizeBytes?: string;
 };
 
 const DEFAULTS: EstatutosData = {
   lastUpdateLabel: '11 de Julho de 2024',
   legalBase: 'Lei das Sociedades Comerciais',
+  documentUrl: '',
+  documentLabel: 'Estatutos Sociais da ENSA',
   updatedAt: '',
   sections: [
-    { id: 'natureza', title: 'Natureza e Firma', content: '', files: [] },
-    { id: 'objecto', title: 'Objecto Social', content: '', files: [] },
-    { id: 'capital', title: 'Capital Social e Acções', content: '', files: [] },
-    { id: 'orgaos', title: 'Governança e Órgãos', content: '', files: [] },
-    { id: 'sede', title: 'Sede e Duração', content: '', files: [] },
+    { id: 'natureza', title: 'Natureza e Firma', content: '' },
+    { id: 'objecto', title: 'Objecto Social', content: '' },
+    { id: 'capital', title: 'Capital Social e Acções', content: '' },
+    { id: 'orgaos', title: 'Governança e Órgãos', content: '' },
+    { id: 'sede', title: 'Sede e Duração', content: '' },
   ],
 };
 
@@ -75,126 +68,63 @@ function SectionDialog({
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState<Section>(section);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => { setDraft(section); }, [section, open]);
 
-  const updateFile = (fi: number, field: keyof SectionFile, value: string) =>
-    setDraft(d => ({ ...d, files: d.files.map((f, i) => i === fi ? { ...f, [field]: value } : f) }));
-
-  const removeFile = (fi: number) =>
-    setDraft(d => ({ ...d, files: d.files.filter((_, i) => i !== fi) }));
-
   return (
-    <>
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-        <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-            {draft.title || 'Novo Capítulo'}
-          </Typography>
-          <IconButton size="small" onClick={onClose}><X size={18} /></IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="ID (slug)"
-                value={draft.id}
-                onChange={e => setDraft(d => ({ ...d, id: e.target.value }))}
-                size="small"
-                sx={{ minWidth: 140 }}
-                helperText="Identificador único, sem espaços"
-              />
-              <TextField
-                label="Título da Secção"
-                value={draft.title}
-                onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-                size="small"
-                fullWidth
-              />
-            </Stack>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+          {draft.title || 'Novo Capítulo'}
+        </Typography>
+        <IconButton size="small" onClick={onClose}><X size={18} /></IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
-              label="Conteúdo"
-              value={draft.content}
-              onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
-              multiline
-              minRows={4}
-              fullWidth
+              label="ID (slug)"
+              value={draft.id}
+              onChange={e => setDraft(d => ({ ...d, id: e.target.value }))}
               size="small"
+              sx={{ minWidth: 140 }}
+              helperText="Identificador único, sem espaços"
             />
-
-            <Divider />
-
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                Ficheiros ({draft.files?.length || 0})
-              </Typography>
-              <Tooltip title="Selecionar ficheiro da Biblioteca">
-                <Button
-                  size="small" variant="outlined"
-                  startIcon={<Upload size={13} />}
-                  onClick={() => setPickerOpen(true)}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                >
-                  Biblioteca
-                </Button>
-              </Tooltip>
-            </Stack>
-
-            {(draft.files?.length || 0) === 0 ? (
-              <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                Nenhum ficheiro. Clique em "Biblioteca" para adicionar.
-              </Typography>
-            ) : (
-              <Stack spacing={1}>
-                {draft.files.map((file, fi) => (
-                  <Paper key={fi} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Link2 size={14} color="#475569" />
-                      <TextField
-                        size="small" label="Etiqueta" value={file.label}
-                        onChange={e => updateFile(fi, 'label', e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size="small" label="URL" value={file.url}
-                        onChange={e => updateFile(fi, 'url', e.target.value)}
-                        sx={{ flex: 2 }}
-                        InputProps={{ readOnly: true }}
-                      />
-                      <IconButton size="small" color="error" onClick={() => removeFile(fi)}>
-                        <Trash2 size={14} />
-                      </IconButton>
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-            )}
+            <TextField
+              label="Título da Secção"
+              value={draft.title}
+              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+              size="small"
+              fullWidth
+            />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
-          <Button
-            size="small" color="error" startIcon={<Trash2 size={14} />}
-            onClick={() => { onDelete(); onClose(); }}
-            sx={{ textTransform: 'none' }}
-          >
-            Eliminar
+          <TextField
+            label="Conteúdo"
+            value={draft.content}
+            onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
+            multiline
+            minRows={4}
+            fullWidth
+            size="small"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+        <Button
+          size="small" color="error" startIcon={<Trash2 size={14} />}
+          onClick={() => { onDelete(); onClose(); }}
+          sx={{ textTransform: 'none' }}
+        >
+          Eliminar
+        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button variant="contained" onClick={() => { onSave(draft); onClose(); }} sx={{ textTransform: 'none', fontWeight: 700 }}>
+            Guardar
           </Button>
-          <Stack direction="row" spacing={1}>
-            <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancelar</Button>
-            <Button variant="contained" onClick={() => { onSave(draft); onClose(); }} sx={{ textTransform: 'none', fontWeight: 700 }}>
-              Guardar
-            </Button>
-          </Stack>
-        </DialogActions>
-      </Dialog>
-
-      <SharedFilePicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={f => setDraft(d => ({ ...d, files: [...(d.files || []), { label: f.name, url: f.url }] }))}
-      />
-    </>
+        </Stack>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -230,14 +160,6 @@ function SectionCard({
             id: {section.id || '—'}
           </Typography>
         </Box>
-        {(section.files?.length || 0) > 0 && (
-          <Tooltip title={`${section.files.length} ficheiro(s)`}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748b' }}>
-              <Paperclip size={13} />
-              <Typography variant="caption" sx={{ fontWeight: 700 }}>{section.files.length}</Typography>
-            </Box>
-          </Tooltip>
-        )}
         <Edit2 size={14} color="#94a3b8" />
       </Stack>
     </Paper>
@@ -251,13 +173,16 @@ export default function EstatutosEditor() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
 
+  const [docPickerOpen, setDocPickerOpen] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/estatutos`)
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then((d: EstatutosData) => setData({
+        ...DEFAULTS,
         ...d,
-        sections: (d.sections || []).map(s => ({ ...s, files: s.files || [] })),
+        sections: (d.sections || []).map(s => ({ id: s.id, title: s.title, content: s.content })),
       }))
       .catch(() => setData(DEFAULTS))
       .finally(() => setLoading(false));
@@ -268,27 +193,48 @@ export default function EstatutosEditor() {
     setTimeout(() => setMsg(null), 4000);
   };
 
-  const handleSave = async () => {
+  const handleSaveSection = async (idx: number, updated: Section) => {
+    const newSections = data.sections.map((s, i) => i === idx ? { id: updated.id, title: updated.title, content: updated.content } : s);
+    const newData = { ...data, sections: newSections };
+    setData(newData);
     try {
       setSaving(true);
       const res = await fetch(`${API_BASE}/estatutos`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(newData),
       });
       if (!res.ok) throw new Error();
-      const updated: EstatutosData = await res.json();
-      setData({ ...updated, sections: (updated.sections || []).map(s => ({ ...s, files: s.files || [] })) });
-      showMsg('success', 'Estatutos guardados com sucesso.');
+      const saved: EstatutosData = await res.json();
+      setData({ ...saved, sections: (saved.sections || []).map(s => ({ ...s, files: s.files || [] })) });
+      showMsg('success', 'Secção guardada com sucesso.');
     } catch {
-      showMsg('error', 'Erro ao guardar os estatutos.');
+      showMsg('error', 'Erro ao guardar a secção.');
     } finally {
       setSaving(false);
     }
   };
 
-  const updateSection = (idx: number, updated: Section) =>
-    setData(prev => ({ ...prev, sections: prev.sections.map((s, i) => i === idx ? updated : s) }));
+  const handleSaveDocument = async (url: string) => {
+    const newData = { ...data, documentUrl: url };
+    setData(newData);
+    try {
+      setSaving(true);
+      const res = await fetch(`${API_BASE}/estatutos`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newData),
+      });
+      if (!res.ok) throw new Error();
+      const saved: EstatutosData = await res.json();
+      setData({ ...DEFAULTS, ...saved, sections: (saved.sections || []).map(s => ({ id: s.id, title: s.title, content: s.content })) });
+      showMsg('success', 'Documento guardado com sucesso.');
+    } catch {
+      showMsg('error', 'Erro ao guardar o documento.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const deleteSection = (idx: number) =>
     setData(prev => ({ ...prev, sections: prev.sections.filter((_, i) => i !== idx) }));
@@ -296,7 +242,7 @@ export default function EstatutosEditor() {
   const addSection = () =>
     setData(prev => ({
       ...prev,
-      sections: [...prev.sections, { id: `secao-${prev.sections.length + 1}`, title: '', content: '', files: [] }],
+      sections: [...prev.sections, { id: `secao-${prev.sections.length + 1}`, title: '', content: '' }],
     }));
 
   if (loading) {
@@ -307,23 +253,12 @@ export default function EstatutosEditor() {
     <Box sx={{ pb: 6 }}>
       <PageUrlBanner urls={{ path: '/estatuto', label: 'Governança — Estatuto da ENSA' }} />
 
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-            Edite os capítulos e ficheiros de download por secção em{' '}
-            <Box component="code" sx={{ fontSize: 12, bgcolor: '#f1f5f9', px: 0.5, borderRadius: 0.5 }}>/ensa/estatuto</Box>.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
-          onClick={handleSave}
-          disabled={saving}
-          sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', flexShrink: 0 }}
-        >
-          {saving ? 'A guardar…' : 'Guardar Tudo'}
-        </Button>
-      </Stack>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
+          Edite os capítulos e ficheiros de download por secção em{' '}
+          <Box component="code" sx={{ fontSize: 12, bgcolor: '#f1f5f9', px: 0.5, borderRadius: 0.5 }}>/ensa/estatuto</Box>.
+        </Typography>
+      </Box>
 
       {msg && (
         <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>
@@ -353,6 +288,56 @@ export default function EstatutosEditor() {
           />
         </Stack>
       </Paper>
+
+      {/* Single statute document */}
+      <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Documento dos Estatutos</Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
+          <TextField
+            label="Etiqueta do documento"
+            value={data.documentLabel}
+            onChange={e => setData(p => ({ ...p, documentLabel: e.target.value }))}
+            size="small"
+            sx={{ minWidth: 220 }}
+          />
+          <TextField
+            label="URL do ficheiro"
+            value={data.documentUrl}
+            size="small"
+            fullWidth
+            InputProps={{ readOnly: true }}
+            placeholder="Selecione um ficheiro da Biblioteca"
+          />
+          <Tooltip title="Selecionar ficheiro da Biblioteca">
+            <Button
+              variant="outlined"
+              startIcon={<Upload size={14} />}
+              onClick={() => setDocPickerOpen(true)}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flexShrink: 0 }}
+            >
+              Biblioteca
+            </Button>
+          </Tooltip>
+          {data.documentUrl && (
+            <Tooltip title="Remover documento">
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => handleSaveDocument('')}
+                sx={{ borderRadius: 2, textTransform: 'none', flexShrink: 0 }}
+              >
+                Remover
+              </Button>
+            </Tooltip>
+          )}
+        </Stack>
+      </Paper>
+
+      <SharedFilePicker
+        open={docPickerOpen}
+        onClose={() => setDocPickerOpen(false)}
+        onSelect={f => { setDocPickerOpen(false); handleSaveDocument(f.url); }}
+      />
 
       <Divider sx={{ mb: 3 }} />
 
@@ -397,7 +382,7 @@ export default function EstatutosEditor() {
           section={data.sections[editIdx]}
           open={editIdx !== null}
           onClose={() => setEditIdx(null)}
-          onSave={updated => updateSection(editIdx, updated)}
+          onSave={updated => { handleSaveSection(editIdx, updated); setEditIdx(null); }}
           onDelete={() => { deleteSection(editIdx); setEditIdx(null); }}
         />
       )}
