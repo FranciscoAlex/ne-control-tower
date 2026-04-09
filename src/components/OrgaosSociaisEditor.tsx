@@ -42,6 +42,7 @@ type OrganMember = {
   role: string;
   photoUrl: string;
   bio?: string;
+  otherTitles?: string[];
   hyperlink?: string;
   active?: boolean;
 };
@@ -123,16 +124,29 @@ function MemberEditDialog({
   color: string;
   onSave: (updated: OrganMember) => void;
 }) {
-  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', hyperlink: '', active: true });
+  const [localMember, setLocalMember] = useState<OrganMember>({ name: '', role: '', photoUrl: '', bio: '', otherTitles: [], hyperlink: '', active: true });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
 
   useEffect(() => {
     if (member) {
-      setLocalMember({ active: true, ...member });
+      setLocalMember({ active: true, otherTitles: [], ...member });
     } else {
-      setLocalMember({ name: '', role: '', photoUrl: '', bio: '', hyperlink: '', active: true });
+      setLocalMember({ name: '', role: '', photoUrl: '', bio: '', otherTitles: [], hyperlink: '', active: true });
     }
+    setTitleInput('');
   }, [member, open]);
+
+  const addTitle = () => {
+    const t = titleInput.trim();
+    if (!t) return;
+    setLocalMember(prev => ({ ...prev, otherTitles: [...(prev.otherTitles || []), t] }));
+    setTitleInput('');
+  };
+
+  const removeTitle = (idx: number) => {
+    setLocalMember(prev => ({ ...prev, otherTitles: (prev.otherTitles || []).filter((_, i) => i !== idx) }));
+  };
 
   const currentInitials = localMember.name
     .split(' ')
@@ -238,6 +252,38 @@ function MemberEditDialog({
               InputProps={{ sx: { borderRadius: 2 } }}
             />
 
+            {/* Other Titles */}
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', display: 'block', mb: 1 }}>OUTROS TÍTULOS / QUALIFICAÇÕES</Typography>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+                <TextField
+                  size="small"
+                  value={titleInput}
+                  onChange={e => setTitleInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTitle(); } }}
+                  placeholder="Ex: MBA, CFA, PhD..."
+                  InputProps={{ sx: { borderRadius: 2 } }}
+                  sx={{ flex: 1 }}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={addTitle}
+                  disabled={!titleInput.trim()}
+                  sx={{ borderRadius: 2, fontWeight: 700, minWidth: 60 }}
+                >
+                  + Add
+                </Button>
+              </Box>
+              {(localMember.otherTitles || []).length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {(localMember.otherTitles || []).map((t, i) => (
+                    <Chip key={i} label={t} size="small" onDelete={() => removeTitle(i)} sx={{ borderRadius: 2, fontWeight: 600 }} />
+                  ))}
+                </Box>
+              )}
+            </Box>
+
             <FormControlLabel
               control={
                 <Switch
@@ -263,7 +309,7 @@ function MemberEditDialog({
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button 
             variant="contained" 
-            onClick={() => onSave({ ...localMember, hyperlink: localMember.hyperlink?.trim() || undefined })}
+            onClick={() => onSave({ ...localMember, hyperlink: localMember.hyperlink?.trim() || undefined, otherTitles: (localMember.otherTitles || []).filter(t => t.trim()) })}
             disabled={!localMember.name}
             sx={{ borderRadius: 2, px: 4, fontWeight: 700 }}
           >
