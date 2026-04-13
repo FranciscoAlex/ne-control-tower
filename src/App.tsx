@@ -143,8 +143,10 @@ const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(
   Object.entries(VIEW_PATHS).map(([k, v]) => [v, k as ViewMode])
 ) as Record<string, ViewMode>;
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, ''); // e.g. '/ct' or ''
+
 function viewFromLocation(): ViewMode {
-  const path = window.location.pathname;
+  const path = window.location.pathname.replace(BASE, '') || '/';
   return PATH_TO_VIEW[path] ?? 'DASHBOARD';
 }
 
@@ -384,7 +386,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const navigate = (mode: ViewMode) => {
     setViewMode(mode);
     setShowEditor(false);
-    window.history.pushState(null, '', VIEW_PATHS[mode]);
+    window.history.pushState(null, '', BASE + VIEW_PATHS[mode]);
   };
 
   // Sync URL → viewMode on back/forward
