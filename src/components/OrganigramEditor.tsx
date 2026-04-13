@@ -28,6 +28,7 @@ import {
   Edit3,
   GripVertical,
   Upload,
+  Download,
   X,
   Network,
   User,
@@ -811,6 +812,38 @@ export default function OrganigramEditor() {
   const [directorDialog, setDirectorDialog] = useState<{ open: boolean; director: DirectorDTO | null }>({ open: false, director: null });
   const [topNodeDialog, setTopNodeDialog] = useState<{ open: boolean; node: TopNodeDTO | null; defaultParentId?: string }>({ open: false, node: null });
 
+  // ── Import / Export ──
+  const handleExport = () => {
+    if (!data) return;
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `organograma-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed: OrganigramDTO = JSON.parse(ev.target?.result as string);
+        if (!parsed.topNodes || !parsed.directors) throw new Error('Formato inválido');
+        setData(parsed);
+        setSaveStatus('idle');
+      } catch {
+        alert('Ficheiro JSON inválido ou formato não reconhecido.');
+      }
+    };
+    reader.readAsText(file);
+    // reset so the same file can be re-imported
+    e.target.value = '';
+  };
+
   // Custom collision: when dragging a column, nest-targets (column headers) take priority via pointer-within
   const collisionDetectionStrategy = useCallback<CollisionDetection>((args) => {
     const activeType = args.active.data.current?.type;
@@ -1057,11 +1090,23 @@ export default function OrganigramEditor() {
       {/* ===== Header ===== */}
       <Stack direction="row" justifyContent="flex-end" alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" gap={1.5}>
         <Stack direction="row" spacing={1.5}>
-          <Button variant="outlined" startIcon={<Building size={15} />} onClick={() => setTopNodeDialog({ open: true, node: null })} sx={{ borderRadius: 3, textTransform: 'none' }}>
-            Novo Nó
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={<Upload size={15} />}
+            sx={{ borderRadius: 3, textTransform: 'none' }}
+          >
+            Importar
+            <input type="file" accept="application/json" hidden onChange={handleImport} />
           </Button>
-          <Button variant="outlined" startIcon={<User size={15} />} onClick={() => setDirectorDialog({ open: true, director: null })} sx={{ borderRadius: 3, textTransform: 'none' }}>
-            Novo Membro
+          <Button
+            variant="outlined"
+            startIcon={<Download size={15} />}
+            onClick={handleExport}
+            disabled={!data}
+            sx={{ borderRadius: 3, textTransform: 'none' }}
+          >
+            Exportar
           </Button>
           <Button
             variant={saveStatus === 'saved' || saveStatus === 'error' ? 'contained' : 'outlined'}
