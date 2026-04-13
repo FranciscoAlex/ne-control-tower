@@ -988,7 +988,7 @@ function DestaqueEditor() {
             multiline
             minRows={3}
           />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b', mb: 0.5, display: 'block' }}>Ficheiro para Download</Typography>
               <Stack direction="row" spacing={1} alignItems="center">
@@ -1024,7 +1024,7 @@ function DestaqueEditor() {
               value={data.downloadLabel}
               onChange={e => setData(p => ({ ...p, downloadLabel: e.target.value }))}
               size="small"
-              fullWidth
+              sx={{ flex: 0.6 }}
               placeholder='ex: "Baixar Relatório Completo (12.4 MB)"'
             />
           </Stack>
