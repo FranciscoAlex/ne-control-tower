@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Upload, Download, X } from 'lucide-react';
 import SharedFilePicker from './SharedFilePicker';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
@@ -177,6 +177,35 @@ export default function CorpoDirectivoEditor() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
 
+  const handleExport = () => {
+    const json = JSON.stringify(members, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `corpo-directivo-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed: BoardMember[] = JSON.parse(ev.target?.result as string);
+        if (!Array.isArray(parsed)) throw new Error('Formato inválido');
+        setMembers(parsed);
+        setMsg({ type: 'success', text: 'Dados importados. Edite e guarde cada membro para persistir as alterações.' });
+      } catch {
+        setMsg({ type: 'error', text: 'Ficheiro JSON inválido ou formato não reconhecido.' });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const load = async () => {
     try { setLoading(true); const r = await fetch(`${API_BASE}/board-members`); const d = await r.json(); setMembers(Array.isArray(d) ? d : []); }
     catch { setMsg({ type: 'error', text: 'Erro ao carregar.' }); }
@@ -212,7 +241,14 @@ export default function CorpoDirectivoEditor() {
         <Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Gestão dos membros do conselho de administração e direcção.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Membro</Button>
+        <Stack direction="row" spacing={1}>
+          <Button component="label" variant="outlined" startIcon={<Upload size={16} />} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>
+            Importar
+            <input type="file" accept="application/json" hidden onChange={handleImport} />
+          </Button>
+          <Button variant="outlined" startIcon={<Download size={16} />} onClick={handleExport} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Exportar</Button>
+          <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Membro</Button>
+        </Stack>
       </Stack>
       <PageUrlBanner urls={{ label: 'Corpo Directivo', path: '/corpo-diretivo' }} />
       {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
