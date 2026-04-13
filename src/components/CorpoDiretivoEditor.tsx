@@ -27,7 +27,9 @@ import {
   UserPlus, 
   Edit2, 
   X,
-  Briefcase
+  Briefcase,
+  Upload,
+  Download
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
@@ -286,6 +288,35 @@ export default function CorpoDiretivoEditor() {
   const [editingMemberIdx, setEditingMemberIdx] = useState<number | null | 'NEW'>(null);
   const [imageLibraryTarget, setImageLibraryTarget] = useState(false);
 
+  const handleExport = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `corpo-diretivo-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed: OrganMembersData = JSON.parse(ev.target?.result as string);
+        if (!Array.isArray(parsed.organs)) throw new Error('Formato inválido');
+        setData(parsed);
+        showMsg('success', 'Dados importados. Clique em "Gravar Alterações" para guardar.');
+      } catch {
+        showMsg('error', 'Ficheiro JSON inválido ou formato não reconhecido.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/organ-members`)
@@ -412,6 +443,23 @@ export default function CorpoDiretivoEditor() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2} sx={{ width: { xs: '100%', md: 'auto' } }}>
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={<Upload size={16} />}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 3 }}
+          >
+            Importar
+            <input type="file" accept="application/json" hidden onChange={handleImport} />
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            onClick={handleExport}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 3 }}
+          >
+            Exportar
+          </Button>
           <Button
             variant="contained"
             disableElevation
