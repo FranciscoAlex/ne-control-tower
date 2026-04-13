@@ -29,7 +29,9 @@ import {
   UserPlus, 
   Edit2, 
   MoreVertical,
-  X
+  X,
+  Upload,
+  Download
 } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
@@ -576,6 +578,35 @@ function OrganCard({
 
 export default function OrgaosSociaisEditor() {
   const [data, setData] = useState<OrganMembersData>(DEFAULTS);
+
+  const handleExport = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orgaos-sociais-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed: OrganMembersData = JSON.parse(ev.target?.result as string);
+        if (!Array.isArray(parsed.organs)) throw new Error('Formato inválido');
+        setData(parsed);
+        setOrgansDirty(true);
+      } catch {
+        setMsg({ type: 'error', text: 'Ficheiro JSON inválido ou formato não reconhecido.' });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [organsDirty, setOrgansDirty] = useState(false);
@@ -753,6 +784,23 @@ export default function OrgaosSociaisEditor() {
             sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 3 }}
           >
             Adicionar Órgão
+          </Button>
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={<Upload size={16} />}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 3 }}
+          >
+            Importar
+            <input type="file" accept="application/json" hidden onChange={handleImport} />
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            onClick={handleExport}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none', px: 3 }}
+          >
+            Exportar
           </Button>
           {organsDirty && (
             <Button
