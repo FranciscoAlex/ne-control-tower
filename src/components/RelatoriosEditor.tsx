@@ -863,6 +863,7 @@ function DestaqueEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [downloadPickerOpen, setDownloadPickerOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -987,15 +988,37 @@ function DestaqueEditor() {
             multiline
             minRows={3}
           />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="URL do PDF para Download"
-              value={data.downloadUrl}
-              onChange={e => setData(p => ({ ...p, downloadUrl: e.target.value }))}
-              size="small"
-              fullWidth
-              placeholder="https://... (deixe vazio para ocultar o botão)"
-            />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b', mb: 0.5, display: 'block' }}>Ficheiro para Download</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Upload size={14} />}
+                  onClick={() => setDownloadPickerOpen(true)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flexShrink: 0 }}
+                >
+                  Biblioteca
+                </Button>
+                {data.downloadUrl ? (
+                  <Chip
+                    icon={<FileText size={13} />}
+                    label={data.downloadUrl.split('/').pop() || data.downloadUrl}
+                    onDelete={() => setData(p => ({ ...p, downloadUrl: '' }))}
+                    size="small"
+                    sx={{ fontWeight: 600, fontSize: '0.7rem', maxWidth: 260, overflow: 'hidden' }}
+                  />
+                ) : (
+                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>Nenhum ficheiro seleccionado (botão de download oculto)</Typography>
+                )}
+              </Stack>
+              <SharedFilePicker
+                open={downloadPickerOpen}
+                onClose={() => setDownloadPickerOpen(false)}
+                onSelect={f => { setData(p => ({ ...p, downloadUrl: f.url })); setDownloadPickerOpen(false); }}
+              />
+            </Box>
             <TextField
               label="Texto do Botão de Download"
               value={data.downloadLabel}
