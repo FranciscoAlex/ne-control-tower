@@ -163,7 +163,7 @@ type WhoWeAreContentDTO = {
 
 const snapshot = projectSnapshot as any;
 const drawerWidth = 280;
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/investor-content`;
 
 function ContentForm({ onSave, onCancel, title }: { onSave: (d: any) => void; onCancel: () => void; title: string }) {
   const [formData, setFormData] = useState<CommunicationDTO>({
