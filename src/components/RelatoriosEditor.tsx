@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
+import MarkdownRenderer from './MarkdownRenderer';
 import { BarChart2, Check, ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2, TrendingUp, Upload, X } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-13T21:34:59.415Z",
+  "generatedAt": "2026-04-16T23:19:32.739Z",
   "sourceRoot": "src",
-  "totalFiles": 61,
+  "totalFiles": 62,
   "sections": [
     {
       "id": "pages",
@@ -91,15 +91,16 @@
       "id": "components",
       "label": "Components",
       "relativePath": "src/components",
-      "totalFiles": 5,
+      "totalFiles": 6,
       "groups": [
         {
           "name": "Common",
-          "fileCount": 3,
+          "fileCount": 4,
           "sampleFiles": [
             "Common/DetailModal.tsx",
             "Common/FilePreviewDialog.tsx",
-            "Common/Footer/index.tsx"
+            "Common/Footer/index.tsx",
+            "Common/MarkdownRenderer.tsx"
           ]
         },
         {
@@ -116,7 +117,8 @@
         "Auth/ProtectedRoute.tsx",
         "Common/DetailModal.tsx",
         "Common/FilePreviewDialog.tsx",
-        "Common/Footer/index.tsx"
+        "Common/Footer/index.tsx",
+        "Common/MarkdownRenderer.tsx"
       ]
     },
     {

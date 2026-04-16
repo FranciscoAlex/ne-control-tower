@@ -30,7 +30,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { FileText, Image as ImageIcon, RefreshCw, Upload, X } from 'lucide-react';
+import { FileText, Image as ImageIcon, RefreshCw, Upload, X, Trash2 } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -72,6 +72,8 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
   const [docs, setDocs] = useState<PickedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<PickedFile | null>(null);
   const [uploadMsg, setUploadMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [search, setSearch] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -152,6 +154,29 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) await processFile(file);
+  };
+
+  const handleDelete = async (item: PickedFile) => {
+    if (!item) return;
+    setDeleting(true);
+    try {
+      const ext = getExt(item.name);
+      const isImage = isImg(ext);
+      const endpoint = isImage
+        ? `${API_BASE}/media-assets/images`
+        : `${API_BASE}/media-assets/files`;
+      const response = await fetch(`${endpoint}?path=${encodeURIComponent(item.path)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('delete failed');
+      setUploadMsg({ type: 'success', text: `"${item.name}" apagado com sucesso.` });
+      setDeleteConfirmItem(null);
+      await loadAll();
+    } catch {
+      setUploadMsg({ type: 'error', text: 'Não foi possível apagar o ficheiro.' });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const allItems = tab === 0 ? [...images, ...docs] : tab === 1 ? images : docs;
@@ -265,18 +290,21 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
               return (
                 <Paper
                   key={item.url}
-                  onClick={() => { onSelect(item); onClose(); }}
                   sx={{
                     p: 1, borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden',
-                    cursor: 'pointer',
+                    position: 'relative',
                     '&:hover': { borderColor: '#164993', boxShadow: '0 0 0 2px #164993' },
                   }}
                 >
-                  <Box sx={{
-                    width: '100%', aspectRatio: '4/3', borderRadius: 1.5,
-                    bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 0.8,
-                    overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                  <Box
+                    onClick={() => { onSelect(item); onClose(); }}
+                    sx={{
+                      cursor: 'pointer',
+                      width: '100%', aspectRatio: '4/3', borderRadius: 1.5,
+                      bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 0.8,
+                      overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
                     {isImage ? (
                       <Box component="img" src={item.url} alt={item.name}
                         sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -288,13 +316,29 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
                       </Stack>
                     )}
                   </Box>
-                  <Typography variant="caption" noWrap
-                    sx={{ display: 'block', fontWeight: 600, fontSize: '0.7rem' }}>
-                    {item.name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>
-                    {fmtBytes(item.sizeBytes)}
-                  </Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ gap: 0.5 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="caption" noWrap
+                        sx={{ display: 'block', fontWeight: 600, fontSize: '0.7rem' }}>
+                        {item.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>
+                        {fmtBytes(item.sizeBytes)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Apagar ficheiro">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmItem(item);
+                        }}
+                        sx={{ flexShrink: 0, color: '#94a3b8', '&:hover': { color: '#e11d48' } }}
+                      >
+                        <Trash2 size={14} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
                 </Paper>
               );
             })}
@@ -324,6 +368,36 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
           </Button>
         </Tooltip>
       </DialogActions>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirmItem} onClose={() => setDeleteConfirmItem(null)}>
+        <DialogTitle sx={{ fontWeight: 700, color: '#1e293b' }}>
+          Apagar ficheiro?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: '#475569', mt: 1 }}>
+            Tem a certeza que deseja apagar <strong>"{deleteConfirmItem?.name}"</strong>? Esta ação não pode ser desfeita.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setDeleteConfirmItem(null)}
+            disabled={deleting}
+            sx={{ textTransform: 'none' }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => deleteConfirmItem && handleDelete(deleteConfirmItem)}
+            disabled={deleting}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            {deleting ? 'A apagar...' : 'Apagar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }

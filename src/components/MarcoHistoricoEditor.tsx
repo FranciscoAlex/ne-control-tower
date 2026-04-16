@@ -19,6 +19,7 @@ import {
 import PageUrlBanner from './PageUrlBanner';
 import RichTextEditor from './RichTextEditor';
 import SharedFilePicker from './SharedFilePicker';
+import MarkdownRenderer from './MarkdownRenderer';
 import { Check, GripVertical, Image, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
