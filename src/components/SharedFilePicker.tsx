@@ -114,9 +114,9 @@ export default function SharedFilePicker({ open, onClose, onSelect, title = 'Bib
       return;
     }
 
-    const maxBytes = isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxBytes = 120 * 1024 * 1024;
     if (file.size > maxBytes) {
-      setUploadMsg({ type: 'error', text: `Ficheiro demasiado grande. Limite: ${isImage ? '5 MB' : '10 MB'}.` });
+      setUploadMsg({ type: 'error', text: 'Ficheiro demasiado grande. Limite: 120 MB.' });
       return;
     }
 

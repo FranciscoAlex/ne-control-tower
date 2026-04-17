@@ -32,8 +32,8 @@ type AssetItem = {
 };
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
-const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
-const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 120 * 1024 * 1024;
+const FILE_MAX_BYTES = 120 * 1024 * 1024;
 
 const formatBytes = (value?: string) => {
   const bytes = Number(value || 0);
@@ -181,7 +181,7 @@ export default function MediaGalleryEditor() {
         return;
       }
       if (file.size > IMAGE_MAX_BYTES) {
-        setMsg({ type: 'error', text: 'Imagem demasiado grande. Limite: 5MB.' });
+        setMsg({ type: 'error', text: 'Imagem demasiado grande. Limite: 120MB.' });
         return;
       }
     } else {
@@ -190,7 +190,7 @@ export default function MediaGalleryEditor() {
         return;
       }
       if (file.size > FILE_MAX_BYTES) {
-        setMsg({ type: 'error', text: 'Ficheiro demasiado grande. Limite: 10MB.' });
+        setMsg({ type: 'error', text: 'Ficheiro demasiado grande. Limite: 120MB.' });
         return;
       }
     }
