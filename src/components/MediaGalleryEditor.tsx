@@ -328,6 +328,20 @@ export default function MediaGalleryEditor() {
     setRestoreStats(null);
     setMsg(null);
     try {
+      // Fetch the current server asset names so we can skip files that already exist
+      const normalizeForCompare = (n: string) =>
+        n.replaceAll(/[^a-zA-Z0-9._-]/g, '_').replaceAll(/_{2,}/g, '_');
+
+      const [imgRes, fileRes] = await Promise.all([
+        fetch(`${API_BASE}/media-assets/images`),
+        fetch(`${API_BASE}/media-assets/files`),
+      ]);
+      const existingImages: AssetItem[] = imgRes.ok ? await imgRes.json() : [];
+      const existingFiles: AssetItem[] = fileRes.ok ? await fileRes.json() : [];
+      const existingNames = new Set(
+        [...existingImages, ...existingFiles].map((a) => normalizeForCompare(a.name)),
+      );
+
       const zip = await JSZip.loadAsync(zipFile);
       const allowedExts = ['png','jpg','jpeg','webp','gif','bmp','svg','pdf','doc','docx','csv','txt','xls','xlsx'];
       const entries = Object.values(zip.files).filter(
@@ -349,6 +363,14 @@ export default function MediaGalleryEditor() {
         const name = entry.name.split('/').pop() || entry.name;
         const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
         const isImg = ['png','jpg','jpeg','webp','gif','bmp','svg'].includes(ext);
+
+        // Skip files that already exist on the server — preserve the actual/stable copies
+        if (existingNames.has(normalizeForCompare(name))) {
+          skipped++;
+          setRestoreProgress(Math.round(((i + 1) / validEntries.length) * 100));
+          continue;
+        }
+
         try {
           const blob = await entry.async('blob');
           const file = new File([blob], name, { type: blob.type });
