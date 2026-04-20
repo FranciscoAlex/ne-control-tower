@@ -21,10 +21,12 @@ import {
 } from '@mui/material';
 import {
   Check,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Image,
   Link,
+  ListChecks,
   Pencil,
   Plus,
   Trash2,
@@ -144,10 +146,16 @@ function CommunicationCard({
   comm,
   onSave,
   onDelete,
+  selectMode,
+  selected,
+  onToggleSelect,
 }: {
   comm: Communication;
   onSave: (c: Communication) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -224,13 +232,23 @@ function CommunicationCard({
     <Paper sx={{ borderRadius: 4, border: '1px solid #e2e8f0', overflow: 'hidden', mb: 2 }}>
       {/* Header */}
       <Box
-        onClick={() => setOpen(v => !v)}
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', userSelect: 'none', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}
+        onClick={() => { if (selectMode && comm.id) { onToggleSelect?.(comm.id); } else { setOpen(v => !v); } }}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', userSelect: 'none', bgcolor: selected ? '#eff6ff' : open ? '#f8fafc' : 'white', '&:hover': { bgcolor: selected ? '#dbeafe' : '#f8fafc' }, outline: selected ? '2px solid #3b82f6' : 'none', outlineOffset: -2 }}
       >
         <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton size="small" tabIndex={-1} onClick={e => { e.stopPropagation(); setOpen(v => !v); }}>
-            {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-          </IconButton>
+          {selectMode && comm.id ? (
+            <Checkbox
+              checked={!!selected}
+              onChange={() => onToggleSelect?.(comm.id!)}
+              onClick={e => e.stopPropagation()}
+              size="small"
+              sx={{ p: 0.5 }}
+            />
+          ) : (
+            <IconButton size="small" tabIndex={-1} onClick={e => { e.stopPropagation(); setOpen(v => !v); }}>
+              {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            </IconButton>
+          )}
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b' }}>
               {data.title || '(sem título)'}
@@ -625,6 +643,9 @@ export default function ComunicadosEditor({
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -680,6 +701,35 @@ export default function ComunicadosEditor({
     setMsg({ type: 'success', text: 'Comunicação removida.' });
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Eliminar ${selectedIds.size} comunicação(ões) selecionada(s)?`)) return;
+    try {
+      setBulkDeleting(true);
+      await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`${API_BASE}/communications/${id}`, { method: 'DELETE' })
+        )
+      );
+      setCommunications(prev => prev.filter(c => !selectedIds.has(c.id!)));
+      setMsg({ type: 'success', text: `${selectedIds.size} comunicação(ões) eliminada(s).` });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao eliminar algumas entradas.' });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
     <Box sx={{ pb: 6 }}>
       {/* Page header */}
@@ -688,14 +738,27 @@ export default function ComunicadosEditor({
           <Chip label={pageSlug} size="small" sx={{ fontWeight: 700, bgcolor: '#eef4ff', color: '#164993', mb: 1 }} />
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>{pageDesc}</Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Plus size={16} />}
-          onClick={() => setShowNewForm(v => !v)}
-          sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}
-        >
-          Nova Comunicação
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant={selectMode ? 'contained' : 'outlined'}
+            color={selectMode ? 'warning' : 'inherit'}
+            startIcon={selectMode ? <X size={16} /> : <ListChecks size={16} />}
+            onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()); }}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}
+          >
+            {selectMode ? 'Cancelar Seleção' : 'Selecionar'}
+          </Button>
+          {!selectMode && (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => setShowNewForm(v => !v)}
+              sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}
+            >
+              Nova Comunicação
+            </Button>
+          )}
+        </Stack>
       </Stack>
       <PageUrlBanner urls={{ label: pageTitle, path: pageUrl }} />
 
@@ -749,8 +812,67 @@ export default function ComunicadosEditor({
             comm={comm}
             onSave={handleSave}
             onDelete={handleDelete}
+            selectMode={selectMode}
+            selected={selectedIds.has(comm.id!)}
+            onToggleSelect={toggleSelect}
           />
         ))
+      )}
+
+      {/* Bulk-select floating action bar */}
+      {selectMode && (
+        <Paper
+          elevation={6}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            borderRadius: 4,
+            px: 3,
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            zIndex: 1300,
+            bgcolor: 'white',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            minWidth: 380,
+          }}
+        >
+          <CheckSquare size={18} color="#3b82f6" />
+          <Typography variant="body2" sx={{ fontWeight: 700, color: '#1e293b', flex: 1 }}>
+            {selectedIds.size} selecionado(s)
+          </Typography>
+          <Button
+            size="small"
+            onClick={() => setSelectedIds(new Set(filtered.filter(c => c.id).map(c => c.id!)))}
+            disabled={selectedIds.size === filtered.filter(c => c.id).length}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Todos
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={selectedIds.size === 0}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Limpar
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            disabled={selectedIds.size === 0 || bulkDeleting}
+            onClick={handleBulkDelete}
+            startIcon={bulkDeleting ? <CircularProgress size={13} color="inherit" /> : <Trash2 size={14} />}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Eliminar{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+          </Button>
+        </Paper>
       )}
     </Box>
   );

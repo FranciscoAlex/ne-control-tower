@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Check, Edit2, ExternalLink, Paperclip, Plus, Trash2, X } from 'lucide-react';
+import { Check, Download, Edit2, ExternalLink, Paperclip, Plus, Trash2, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -159,6 +159,7 @@ export default function PoliticasEditor() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -175,6 +176,74 @@ export default function PoliticasEditor() {
       }
     })();
   }, []);
+
+  const handleExport = () => {
+    const payload: PoliticasData = {
+      updatedAt: updatedAt || new Date().toISOString(),
+      items: items.map((it, idx) => ({ ...it, sortOrder: idx + 1 })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `politicas_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as PoliticasData;
+        if (!Array.isArray(parsed.items)) throw new Error();
+        setItems(parsed.items);
+        if (parsed.updatedAt) setUpdatedAt(parsed.updatedAt);
+        setMsg({ type: 'success', text: `${parsed.items.length} política(s) importada(s). Clique em "Guardar Alterações" para confirmar.` });
+      } catch {
+        setMsg({ type: 'error', text: 'Ficheiro JSON inválido. Verifique o formato e tente novamente.' });
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExport = () => {
+    const payload: PoliticasData = {
+      updatedAt: updatedAt || new Date().toISOString(),
+      items: items.map((it, idx) => ({ ...it, sortOrder: idx + 1 })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `politicas_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as PoliticasData;
+        if (!Array.isArray(parsed.items)) throw new Error();
+        setItems(parsed.items);
+        if (parsed.updatedAt) setUpdatedAt(parsed.updatedAt);
+        setMsg({ type: 'success', text: `${parsed.items.length} política(s) importada(s). Clique em "Guardar Alterações" para confirmar.` });
+      } catch {
+        setMsg({ type: 'error', text: 'Ficheiro JSON inválido. Verifique o formato e tente novamente.' });
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -221,8 +290,33 @@ export default function PoliticasEditor() {
             <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b' }}>
               Políticas de Referência
             </Typography>
-            <Chip label={`${items.length} política${items.length !== 1 ? 's' : ''}`} size="small"
-              sx={{ bgcolor: '#eef4ff', color: '#164993', fontWeight: 700 }} />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip label={`${items.length} política${items.length !== 1 ? 's' : ''}`} size="small"
+                sx={{ bgcolor: '#eef4ff', color: '#164993', fontWeight: 700 }} />
+              <Tooltip title="Exportar como JSON">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Download size={14} />}
+                  onClick={handleExport}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+                >
+                  Exportar
+                </Button>
+              </Tooltip>
+              <Tooltip title="Importar de ficheiro JSON">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Upload size={14} />}
+                  onClick={() => importRef.current?.click()}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+                >
+                  Importar
+                </Button>
+              </Tooltip>
+              <input ref={importRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImport} />
+            </Stack>
           </Stack>
           <Typography variant="caption" sx={{ color: '#64748b' }}>
             Cada política pode ter um ficheiro anexado. Quando um ficheiro está anexado,

@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Collapse,
   Chip,
@@ -14,7 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import PageUrlBanner from './PageUrlBanner';
-import { Calendar, Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Calendar, Check, CheckSquare, ChevronDown, ChevronRight, ListChecks, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -48,10 +49,13 @@ function isPast(dateStr: string) {
   return new Date(dateStr) < new Date();
 }
 
-function EventCard({ item, onSave, onDelete }: {
+function EventCard({ item, onSave, onDelete, selectMode, selected, onToggleSelect }: {
   item: Event;
   onSave: (e: Event) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -77,11 +81,21 @@ function EventCard({ item, onSave, onDelete }: {
         <Box sx={{ width: 6, bgcolor: color, borderRadius: '4px 0 0 4px', flexShrink: 0 }} />
         <Box sx={{ flex: 1 }}>
           <Box
-            onClick={() => setOpen(v => !v)}
-            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: open ? '#f8fafc' : 'white', '&:hover': { bgcolor: '#f8fafc' } }}
+          onClick={() => { if (selectMode && item.id) { onToggleSelect?.(item.id); } else { setOpen(v => !v); } }}
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, cursor: 'pointer', bgcolor: selected ? '#eff6ff' : open ? '#f8fafc' : 'white', '&:hover': { bgcolor: selected ? '#dbeafe' : '#f8fafc' }, outline: selected ? '2px solid #3b82f6' : 'none', outlineOffset: -2 }}
           >
             <Stack direction="row" spacing={2} alignItems="center">
-              <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
+              {selectMode && item.id ? (
+                <Checkbox
+                  checked={!!selected}
+                  onChange={() => onToggleSelect?.(item.id!)}
+                  onClick={e => e.stopPropagation()}
+                  size="small"
+                  sx={{ p: 0.5 }}
+                />
+              ) : (
+                <IconButton size="small" tabIndex={-1}>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</IconButton>
+              )}
               <Box sx={{ textAlign: 'center', minWidth: 48 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', lineHeight: 1 }}>
                   {new Date(data.eventDate).toLocaleDateString('pt-AO', { month: 'short' }).toUpperCase()}
@@ -174,6 +188,9 @@ export default function EventosEditor() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'UPCOMING' | 'PAST'>('ALL');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -206,6 +223,35 @@ export default function EventosEditor() {
     setMsg({ type: 'success', text: 'Removido.' });
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Eliminar ${selectedIds.size} evento(s) selecionado(s)?`)) return;
+    try {
+      setBulkDeleting(true);
+      await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`${API_BASE}/events/${id}`, { method: 'DELETE' })
+        )
+      );
+      setEvents(p => p.filter(x => !selectedIds.has(x.id!)));
+      setMsg({ type: 'success', text: `${selectedIds.size} evento(s) eliminado(s).` });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } catch {
+      setMsg({ type: 'error', text: 'Erro ao eliminar.' });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const now = new Date();
   const shown = events.filter(e => {
     if (filter === 'UPCOMING') return new Date(e.eventDate) >= now;
@@ -219,7 +265,20 @@ export default function EventosEditor() {
         <Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Gestão de eventos institucionais — assembleias, conferências, resultados.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Evento</Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant={selectMode ? 'contained' : 'outlined'}
+            color={selectMode ? 'warning' : 'inherit'}
+            startIcon={selectMode ? <X size={16} /> : <ListChecks size={16} />}
+            onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()); }}
+            sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}
+          >
+            {selectMode ? 'Cancelar Seleção' : 'Selecionar'}
+          </Button>
+          {!selectMode && (
+            <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Evento</Button>
+          )}
+        </Stack>
       </Stack>
       <PageUrlBanner urls={{ label: 'Calendário de Eventos', path: '/calendario-divulgacoes' }} />
       {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
@@ -243,8 +302,64 @@ export default function EventosEditor() {
         ? <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress /></Stack>
         : shown.length === 0
           ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem eventos.</Typography></Paper>
-          : shown.map(e => <EventCard key={e.id} item={e} onSave={handleSave} onDelete={handleDelete} />)
+          : shown.map(e => <EventCard key={e.id} item={e} onSave={handleSave} onDelete={handleDelete} selectMode={selectMode} selected={selectedIds.has(e.id!)} onToggleSelect={toggleSelect} />)
       }
+
+      {/* Bulk-select floating action bar */}
+      {selectMode && (
+        <Paper
+          elevation={6}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            borderRadius: 4,
+            px: 3,
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            zIndex: 1300,
+            bgcolor: 'white',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            minWidth: 380,
+          }}
+        >
+          <CheckSquare size={18} color="#3b82f6" />
+          <Typography variant="body2" sx={{ fontWeight: 700, color: '#1e293b', flex: 1 }}>
+            {selectedIds.size} selecionado(s)
+          </Typography>
+          <Button
+            size="small"
+            onClick={() => setSelectedIds(new Set(shown.filter(e => e.id).map(e => e.id!)))}
+            disabled={selectedIds.size === shown.filter(e => e.id).length}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Todos
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={selectedIds.size === 0}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Limpar
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            disabled={selectedIds.size === 0 || bulkDeleting}
+            onClick={handleBulkDelete}
+            startIcon={bulkDeleting ? <CircularProgress size={13} color="inherit" /> : <Trash2 size={14} />}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Eliminar{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+          </Button>
+        </Paper>
+      )}
     </Box>
   );
 }
