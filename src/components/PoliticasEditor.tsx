@@ -211,40 +211,6 @@ export default function PoliticasEditor() {
     reader.readAsText(file);
   };
 
-  const handleExport = () => {
-    const payload: PoliticasData = {
-      updatedAt: updatedAt || new Date().toISOString(),
-      items: items.map((it, idx) => ({ ...it, sortOrder: idx + 1 })),
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `politicas_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target?.result as string) as PoliticasData;
-        if (!Array.isArray(parsed.items)) throw new Error();
-        setItems(parsed.items);
-        if (parsed.updatedAt) setUpdatedAt(parsed.updatedAt);
-        setMsg({ type: 'success', text: `${parsed.items.length} política(s) importada(s). Clique em "Guardar Alterações" para confirmar.` });
-      } catch {
-        setMsg({ type: 'error', text: 'Ficheiro JSON inválido. Verifique o formato e tente novamente.' });
-      } finally {
-        e.target.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const handleSave = async () => {
     setSaving(true);
     setMsg(null);
