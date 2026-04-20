@@ -51,15 +51,37 @@ type GovernanceReport = {
   language: string;
 };
 
-const STATEMENT_TYPES = ['Relatório e Contas', 'Demonstração Financeira', 'Relatório de Auditoria', 'Relatório Intercalar', 'Outro'];
+// These values MUST match exactly what the frontend pages filter by.
+// 'Relatório Anual'     → /relatorio-contas
+// 'Relatório Semestral' → /relatorio-semestral
+// 'Relatório Trimestral'→ /relatorio-trimestral
+const STATEMENT_TYPES = [
+  'Relatório Anual',
+  'Relatório Semestral',
+  'Relatório Trimestral',
+  'Demonstração Financeira',
+  'Relatório de Auditoria',
+  'Outro',
+];
+
+const STATEMENT_TYPE_PAGE: Record<string, string> = {
+  'Relatório Anual':       '→ /relatorio-contas',
+  'Relatório Semestral':   '→ /relatorio-semestral',
+  'Relatório Trimestral':  '→ /relatorio-trimestral',
+  'Demonstração Financeira': '→ arquivo geral',
+  'Relatório de Auditoria':  '→ arquivo geral',
+  'Outro':                   '→ arquivo geral',
+};
+
 const LANGUAGES = ['PT', 'EN'];
 
 const STATEMENT_TYPE_COLORS: Record<string, { border: string; chipBg: string; chipText: string }> = {
-  'Relatório e Contas':        { border: '#3b82f6', chipBg: '#eff6ff', chipText: '#1d4ed8' },
-  'Demonstração Financeira':   { border: '#6366f1', chipBg: '#eef2ff', chipText: '#4338ca' },
-  'Relatório de Auditoria':    { border: '#8b5cf6', chipBg: '#f5f3ff', chipText: '#6d28d9' },
-  'Relatório Intercalar':      { border: '#f59e0b', chipBg: '#fffbeb', chipText: '#b45309' },
-  'Outro':                     { border: '#94a3b8', chipBg: '#f1f5f9', chipText: '#475569' },
+  'Relatório Anual':         { border: '#3b82f6', chipBg: '#eff6ff', chipText: '#1d4ed8' },
+  'Relatório Semestral':     { border: '#10b981', chipBg: '#f0fdf4', chipText: '#065f46' },
+  'Relatório Trimestral':    { border: '#f59e0b', chipBg: '#fffbeb', chipText: '#b45309' },
+  'Demonstração Financeira': { border: '#6366f1', chipBg: '#eef2ff', chipText: '#4338ca' },
+  'Relatório de Auditoria':  { border: '#8b5cf6', chipBg: '#f5f3ff', chipText: '#6d28d9' },
+  'Outro':                   { border: '#94a3b8', chipBg: '#f1f5f9', chipText: '#475569' },
 };
 const GOV_REPORT_COLOR = { border: '#14b8a6', chipBg: '#f0fdfa', chipText: '#0f766e' };
 
@@ -193,12 +215,13 @@ function StatementCard({ item, onSave, onDelete }: {
               />
               <TextField
                 select
-                label="Tipo"
+                label="Tipo / Página de Destino"
                 value={draft.statementType}
                 onChange={e => setDraft(p => ({ ...p, statementType: e.target.value }))}
                 size="small"
                 fullWidth
                 SelectProps={{ native: true }}
+                helperText={STATEMENT_TYPE_PAGE[draft.statementType] || ''}
               >
                 {STATEMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </TextField>
@@ -470,8 +493,8 @@ function GovReportCard({ item, onSave, onDelete }: {
 }
 
 // ---- New forms ----
-function NewStatementForm({ onSubmit, onCancel }: { onSubmit: (i: FinancialStatement) => Promise<void>; onCancel: () => void }) {
-  const [data, setData] = useState<FinancialStatement>({ year: new Date().getFullYear(), title: '', documentUrl: '', statementType: 'Relatório e Contas', language: 'PT' });
+function NewStatementForm({ onSubmit, onCancel, defaultType }: { onSubmit: (i: FinancialStatement) => Promise<void>; onCancel: () => void; defaultType?: string }) {
+  const [data, setData] = useState<FinancialStatement>({ year: new Date().getFullYear(), title: '', documentUrl: '', statementType: defaultType || 'Relatório Anual', language: 'PT' });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const submit = async () => {
@@ -485,8 +508,8 @@ function NewStatementForm({ onSubmit, onCancel }: { onSubmit: (i: FinancialState
         <TextField label="Título *" value={data.title} onChange={e => setData(p => ({ ...p, title: e.target.value }))} size="small" fullWidth autoFocus />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField label="Ano" type="number" value={data.year} onChange={e => setData(p => ({ ...p, year: Number(e.target.value) }))} size="small" sx={{ minWidth: 110 }} />
-          <TextField select label="Tipo" value={data.statementType} onChange={e => setData(p => ({ ...p, statementType: e.target.value }))} size="small" sx={{ minWidth: 200 }} SelectProps={{ native: true }}>
-            {STATEMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          <TextField select label="Tipo / Página de Destino" value={data.statementType} onChange={e => setData(p => ({ ...p, statementType: e.target.value }))} size="small" sx={{ minWidth: 240 }} SelectProps={{ native: true }} helperText={STATEMENT_TYPE_PAGE[data.statementType] || ''}>
+            {STATEMENT_TYPES.map(t => <option key={t} value={t}>{t} {STATEMENT_TYPE_PAGE[t] || ''}</option>)}
           </TextField>
           <TextField select label="Idioma" value={data.language} onChange={e => setData(p => ({ ...p, language: e.target.value }))} size="small" sx={{ minWidth: 100 }} SelectProps={{ native: true }}>
             {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
@@ -1134,10 +1157,32 @@ export default function RelatoriosEditor() {
         <Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>Demonstrações financeiras e relatórios de governação corporativa.</Typography>
         </Box>
-        {tab !== 2 && (
+        {tab !== 3 && tab !== 4 && (
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setShowNew(v => !v)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>Novo Documento</Button>
         )}
       </Stack>
+
+      {/* Page routing info banner */}
+      <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+        <Typography variant="caption" sx={{ fontWeight: 800, color: '#475569', display: 'block', mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          📋 Roteamento de Documentos — o tipo define em qual página o ficheiro aparece
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap>
+          {[
+            { label: 'Relatório Anual', page: '/relatorio-contas', color: '#3b82f6', bg: '#eff6ff' },
+            { label: 'Relatório Semestral', page: '/relatorio-semestral', color: '#10b981', bg: '#f0fdf4' },
+            { label: 'Relatório Trimestral', page: '/relatorio-trimestral', color: '#f59e0b', bg: '#fffbeb' },
+          ].map(r => (
+            <Stack key={r.label} direction="row" alignItems="center" spacing={0.75} sx={{ px: 1.5, py: 0.75, borderRadius: 2, bgcolor: r.bg, border: `1px solid ${r.color}22` }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
+              <Typography variant="caption" sx={{ fontWeight: 700, color: r.color }}>{r.label}</Typography>
+              <Typography variant="caption" sx={{ color: '#94a3b8' }}>→</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b', fontFamily: 'monospace' }}>{r.page}</Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Paper>
+
       <PageUrlBanner urls={[
         { label: 'Relatórios Anuais', path: '/relatorio-contas' },
         { label: 'R. Trimestral', path: '/relatorio-trimestral' },
@@ -1146,34 +1191,74 @@ export default function RelatoriosEditor() {
       {msg && <Alert severity={msg.type} onClose={() => setMsg(null)} sx={{ mb: 2, borderRadius: 2 }}>{msg.text}</Alert>}
 
       <Tabs value={tab} onChange={(_, v) => { setTab(v); setShowNew(false); }} sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 700, textTransform: 'none' } }}>
-        <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Demonstrações Financeiras</span><Chip label={statements.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} /></Stack>} />
-        <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Relatórios de Governação</span><Chip label={govReports.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} /></Stack>} />
+        <Tab label={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#3b82f6' }} />
+            <span>Anuais</span>
+            <Chip label={statements.filter(s => s.statementType === 'Relatório Anual').length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#eff6ff', color: '#1d4ed8' }} />
+          </Stack>
+        } />
+        <Tab label={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10b981' }} />
+            <span>Semestrais</span>
+            <Chip label={statements.filter(s => s.statementType === 'Relatório Semestral').length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f0fdf4', color: '#065f46' }} />
+          </Stack>
+        } />
+        <Tab label={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f59e0b' }} />
+            <span>Trimestrais</span>
+            <Chip label={statements.filter(s => s.statementType === 'Relatório Trimestral').length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309' }} />
+          </Stack>
+        } />
+        <Tab label={<Stack direction="row" spacing={1} alignItems="center"><span>Governação</span><Chip label={govReports.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} /></Stack>} />
         <Tab label="🔵 Destaque + Métricas KPI" />
       </Tabs>
 
-      {tab === 2 ? (
+      {tab === 4 ? (
         <DestaqueEditor />
+      ) : tab === 3 ? (
+        <>
+          {loading
+            ? <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress /></Stack>
+            : govReports.length === 0
+              ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem relatórios de governação.</Typography></Paper>
+              : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+                  {govReports.map(r => <GovReportCard key={r.id} item={r} onSave={saveGovReport} onDelete={deleteGovReport} />)}
+                </Box>
+          }
+          {showNew && <NewGovReportForm onSubmit={createGovReport} onCancel={() => setShowNew(false)} />}
+        </>
       ) : (
         <>
-          {showNew && (
-            tab === 0
-              ? <NewStatementForm onSubmit={createStatement} onCancel={() => setShowNew(false)} />
-              : <NewGovReportForm onSubmit={createGovReport} onCancel={() => setShowNew(false)} />
-          )}
+          {/* Page-scoped "new document" form */}
+          {showNew && (() => {
+            const typeMap: Record<number, string> = { 0: 'Relatório Anual', 1: 'Relatório Semestral', 2: 'Relatório Trimestral' };
+            return <NewStatementForm defaultType={typeMap[tab]} onSubmit={createStatement} onCancel={() => setShowNew(false)} />;
+          })()}
 
           {loading
             ? <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress /></Stack>
-            : tab === 0
-              ? statements.length === 0
-                ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem documentos.</Typography></Paper>
-                : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
-                    {statements.map(s => <StatementCard key={s.id} item={s} onSave={saveStatement} onDelete={deleteStatement} />)}
+            : (() => {
+                const typeMap: Record<number, string> = { 0: 'Relatório Anual', 1: 'Relatório Semestral', 2: 'Relatório Trimestral' };
+                const filtered = statements.filter(s => s.statementType === typeMap[tab]);
+                if (filtered.length === 0) return (
+                  <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '2px dashed #e2e8f0' }}>
+                    <Typography variant="body2" sx={{ color: '#94a3b8', mb: 2 }}>
+                      Nenhum documento do tipo <strong>{typeMap[tab]}</strong> encontrado.
+                    </Typography>
+                    <Button variant="outlined" startIcon={<Plus size={16} />} onClick={() => setShowNew(true)} sx={{ borderRadius: 3, fontWeight: 700, textTransform: 'none' }}>
+                      Adicionar Primeiro Documento
+                    </Button>
+                  </Paper>
+                );
+                return (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+                    {filtered.map(s => <StatementCard key={s.id} item={s} onSave={saveStatement} onDelete={deleteStatement} />)}
                   </Box>
-              : govReports.length === 0
-                ? <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}><Typography variant="body2" sx={{ color: '#94a3b8' }}>Sem relatórios de governação.</Typography></Paper>
-                : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
-                    {govReports.map(r => <GovReportCard key={r.id} item={r} onSave={saveGovReport} onDelete={deleteGovReport} />)}
-                  </Box>
+                );
+              })()
           }
         </>
       )}

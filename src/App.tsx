@@ -91,6 +91,7 @@ import ParticipadasEditor from './components/ParticipadasEditor';
 import MediaGalleryEditor from './components/MediaGalleryEditor';
 import PoliticasEditor from './components/PoliticasEditor';
 import LegislacaoEditor from './components/LegislacaoEditor';
+import FinancialDashboardEditor from './components/FinancialDashboardEditor';
 import logoEnsaSrc from './assets/logo_ensa.png';
 
 // --- Types ---
@@ -104,7 +105,7 @@ type CommunicationDTO = {
   imageUrl?: string;
 };
 
-type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'VISUAL_INDICATORS' | 'CEO_MESSAGE' | 'CAROUSEL' | 'SOBRE_NOS_CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO' | 'MARCO_HISTORICO';
+type ViewMode = 'DASHBOARD' | 'MAP' | 'SOBRE' | 'GOVERNANCA' | 'FINANCAS' | 'ASSEMBLEIAS' | 'COMUNICADOS' | 'NOTICIAS' | 'APOIO' | 'INDICADORES' | 'ORGANOGRAMA' | 'ESTATUTOS' | 'ORGAOS_SOCIAIS' | 'EXECUTIVE' | 'ANNUAL_REPORTS' | 'RATINGS' | 'CALENDARIO' | 'ACIONISTAS' | 'PARTICIPADAS' | 'EVENTOS' | 'MERCADO' | 'VISUAL_INDICATORS' | 'CEO_MESSAGE' | 'CAROUSEL' | 'SOBRE_NOS_CAROUSEL' | 'PLANO_ESTRATEGICO' | 'MEDIA_GALLERY' | 'POLITICAS' | 'LEGISLACAO' | 'MARCO_HISTORICO' | 'FINANCIAL_DASHBOARD';
 
 const VIEW_PATHS: Record<ViewMode, string> = {
   DASHBOARD:     '/dashboard',
@@ -137,6 +138,7 @@ const VIEW_PATHS: Record<ViewMode, string> = {
   SOBRE_NOS_CAROUSEL: '/sobre/carousel',
   PLANO_ESTRATEGICO: '/sobre/plano-estrategico',
   MARCO_HISTORICO: '/sobre/historia',
+  FINANCIAL_DASHBOARD: '/financas/dashboard-financeiro',
 };
 
 const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(
@@ -496,7 +498,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       icon: <TrendingUp size={20} />,
       sub: [
         { id: 'INDICADORES', text: 'Indicadores Chave (KPIs)', icon: <PieChart size={18} /> },
-        { id: 'ANNUAL_REPORTS', text: 'Relatórios e Contas', icon: <FileText size={18} /> },
+        { id: 'ANNUAL_REPORTS', text: 'Relatórios & Contas', icon: <FileText size={18} /> },
+        { id: 'FINANCIAL_DASHBOARD', text: 'Dashboard Financeiro', icon: <TrendingUp size={18} /> },
         { id: 'RATINGS', text: 'Ratings e Notações', icon: <Activity size={18} /> },
         { id: 'MERCADO', text: 'Análise de Mercado', icon: <TrendingUp size={18} /> },
         { id: 'VISUAL_INDICATORS', text: 'Indicadores Visuais', icon: <PieChart size={18} /> },
@@ -657,7 +660,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   ACIONISTAS: 'Estrutura Accionista',
                   PARTICIPADAS: 'Empresas Participadas',
                   INDICADORES: 'Indicadores Chave (KPIs)',
-                  ANNUAL_REPORTS: 'Relatórios e Contas',
+                  ANNUAL_REPORTS: 'Relatórios & Contas',
                   PLANO_ESTRATEGICO: 'Plano Estratégico',
                   RATINGS: 'Ratings e Notações',
                   MERCADO: 'Análise de Mercado',
@@ -922,6 +925,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             <MercadoEditor />
           ) : viewMode === 'VISUAL_INDICATORS' ? (
             <VisualIndicatorsEditor />
+          ) : viewMode === 'FINANCIAL_DASHBOARD' ? (
+            <FinancialDashboardEditor />
           ) : viewMode === 'MEDIA_GALLERY' ? (
             <MediaGalleryEditor />
           ) : viewMode === 'CEO_MESSAGE' ? (
