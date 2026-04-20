@@ -13,6 +13,8 @@ import {
   IconButton,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -20,7 +22,7 @@ import {
 import { Edit2, Plus, Trash2, Upload, X } from 'lucide-react';
 import PageUrlBanner from './PageUrlBanner';
 import SharedFilePicker from './SharedFilePicker';
-import MarkdownRenderer from './MarkdownRenderer';
+import RichTextEditor from './RichTextEditor';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/investor-content`;
 
@@ -69,11 +71,12 @@ function SectionDialog({
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState<Section>(section);
+  const [previewTab, setPreviewTab] = useState(0);
 
-  useEffect(() => { setDraft(section); }, [section, open]);
+  useEffect(() => { setDraft(section); setPreviewTab(0); }, [section, open]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
       <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
           {draft.title || 'Novo Capítulo'}
@@ -99,15 +102,67 @@ function SectionDialog({
               fullWidth
             />
           </Stack>
-          <TextField
-            label="Conteúdo"
-            value={draft.content}
-            onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
-            multiline
-            minRows={4}
-            fullWidth
-            size="small"
-          />
+
+          {/* Editor / Preview tabs */}
+          <Box>
+            <Tabs
+              value={previewTab}
+              onChange={(_, v) => setPreviewTab(v)}
+              sx={{ mb: 1, minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none', fontWeight: 700, fontSize: 13 } }}
+            >
+              <Tab label="Editar" />
+              <Tab label="Pré-visualizar" />
+            </Tabs>
+
+            {previewTab === 0 ? (
+              <RichTextEditor
+                value={draft.content}
+                onChange={html => setDraft(d => ({ ...d, content: html }))}
+                minHeight={260}
+              />
+            ) : (
+              <Box
+                sx={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 3,
+                  p: 3,
+                  minHeight: 260,
+                  bgcolor: '#fafcff',
+                  color: '#1e293b',
+                  fontSize: '0.95rem',
+                  lineHeight: 1.8,
+                  '& p': { mb: 2, textAlign: 'justify' },
+                  '& h1': { mt: 2.5, mb: 1.5, fontWeight: 900, fontSize: '1.5rem', color: '#0f172a' },
+                  '& h2': { mt: 2.5, mb: 1.5, fontWeight: 800, fontSize: '1.25rem', color: '#0f172a' },
+                  '& h3': { mt: 2, mb: 1, fontWeight: 700, fontSize: '1.1rem', color: '#1e293b' },
+                  '& h4': { mt: 1.5, mb: 1, fontWeight: 700, fontSize: '1rem', color: '#1e293b' },
+                  '& strong, & b': { fontWeight: 800 },
+                  '& em, & i': { fontStyle: 'italic' },
+                  '& u': { textDecoration: 'underline' },
+                  '& ul': { pl: 3.5, mb: 2, listStyleType: 'disc' },
+                  '& ol': { pl: 3.5, mb: 2, listStyleType: 'decimal' },
+                  '& li': { mb: 0.5, lineHeight: 1.7 },
+                  '& a': { color: '#2563eb', textDecoration: 'underline' },
+                  '& blockquote': {
+                    borderLeft: '4px solid #2563eb',
+                    pl: 2,
+                    ml: 0,
+                    my: 2,
+                    fontStyle: 'italic',
+                    color: '#64748b',
+                    bgcolor: '#f8fafc',
+                    py: 1,
+                    pr: 2,
+                  },
+                  '& hr': { border: 'none', borderTop: '1px solid #e2e8f0', my: 2 },
+                  '& table': { width: '100%', borderCollapse: 'collapse', my: 2 },
+                  '& th, & td': { border: '1px solid #e2e8f0', px: 1.5, py: 1 },
+                  '& th': { bgcolor: '#f1f5f9', fontWeight: 700 },
+                }}
+                dangerouslySetInnerHTML={{ __html: draft.content || '<p style="color:#94a3b8">Sem conteúdo ainda.</p>' }}
+              />
+            )}
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
@@ -139,6 +194,11 @@ function SectionCard({
   index: number;
   onEdit: () => void;
 }) {
+  // Strip HTML tags for plain-text snippet
+  const snippet = section.content
+    ? section.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
+    : '';
+
   return (
     <Paper
       onClick={onEdit}
@@ -157,9 +217,13 @@ function SectionCard({
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }} noWrap>
             {section.title || '(sem título)'}
           </Typography>
-          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-            id: {section.id || '—'}
-          </Typography>
+          {snippet ? (
+            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 0.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              {snippet}{section.content.replace(/<[^>]*>/g, '').length > 120 ? '…' : ''}
+            </Typography>
+          ) : (
+            <Typography variant="caption" sx={{ color: '#cbd5e1', fontStyle: 'italic' }}>Sem conteúdo</Typography>
+          )}
         </Box>
         <Edit2 size={14} color="#94a3b8" />
       </Stack>
